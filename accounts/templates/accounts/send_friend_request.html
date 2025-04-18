@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <h2 class="gradient-text">Add Friend</h2>
+    
+    <form method="post" style="margin-top: 1.5rem;">
+        {% csrf_token %}
+        
+        <div>
+            <label>Friend's Username</label>
+            <input type="text" name="username" class="form-input" required>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+            <a href="{% url 'friend_list' %}" class="neon-btn">Cancel</a>
+            <button type="submit" class="neon-btn pink-btn">Send Request</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

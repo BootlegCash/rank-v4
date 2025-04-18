@@ -1,0 +1,229 @@
+{% extends 'accounts/auth_base.html' %}
+
+{% block title %}Login - Drink Masters{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="login-header">
+        <h1 class="neon-title">🍻 Drink Masters</h1>
+        <p class="login-subtitle">Log in to your account</p>
+    </div>
+
+    <form method="POST" class="login-form">
+        {% csrf_token %}
+        
+        {% if messages %}
+        <div class="error-message">
+            {% for message in messages %}
+            <div class="error-bubble">
+                <span class="error-icon">⚠️</span>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <input type="text" name="username" id="username" 
+                   class="form-input" placeholder="Username" 
+                   autofocus required>
+            <span class="input-icon">👤</span>
+        </div>
+
+        <div class="form-group">
+            <input type="password" name="password" id="password" 
+                   class="form-input" placeholder="Password" required>
+            <span class="input-icon">🔒</span>
+            <button type="button" class="toggle-password">👁️</button>
+        </div>
+
+        <button type="submit" class="submit-btn pulse-animation">
+            <span class="btn-text">Login</span>
+            <span class="btn-icon">→</span>
+        </button>
+
+        <div class="auth-links">
+            <p>New here? <a href="{% url 'register' %}" class="neon-link">Create account</a></p>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .neon-title {
+        text-align: center;
+        color: var(--hot-pink);
+        text-shadow: 0 0 10px var(--hot-pink);
+        font-size: 2.2rem;
+        margin-bottom: 0.5rem;
+        animation: pulse 2s infinite alternate;
+    }
+
+    .login-subtitle {
+        text-align: center;
+        color: #aaa;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .error-message {
+        margin: 0 auto 1.5rem;
+        width: 90%;
+    }
+
+    .error-bubble {
+        background: rgba(255, 50, 50, 0.15);
+        border: 1px solid #ff3232;
+        border-radius: 50px;
+        padding: 10px 15px;
+        color: #ff6b6b;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        backdrop-filter: blur(5px);
+        box-shadow: 0 0 15px rgba(255, 50, 50, 0.2);
+    }
+
+    .error-icon {
+        font-size: 1.1rem;
+    }
+
+    .form-group {
+        position: relative;
+        width: 85%;
+        margin: 0 auto 1.5rem;
+    }
+
+    .form-input {
+        width: 90%;
+        padding: 14px 12px 14px 40px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--glass-border);
+        border-radius: 50px;
+        color: white;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--neon-cyan);
+        box-shadow: 0 0 15px rgba(0, 254, 252, 0.3);
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+    }
+
+    .toggle-password {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #aaa;
+        cursor: pointer;
+        font-size: 1.1rem;
+        transition: all 0.2s;
+    }
+
+    .toggle-password:hover {
+        color: var(--neon-cyan);
+    }
+
+    .submit-btn {
+        width: 90%;
+        padding: 14px;
+        margin: 1.5rem auto 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: linear-gradient(90deg, var(--hot-pink), #ff6b9e);
+        border: none;
+        border-radius: 50px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(255, 20, 147, 0.5);
+    }
+
+    .pulse-animation:hover {
+        animation: pulse 1s infinite;
+    }
+
+    .btn-icon {
+        font-size: 1.2rem;
+    }
+
+    .auth-links {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #aaa;
+        font-size: 0.9rem;
+    }
+
+    .neon-link {
+        color: var(--neon-cyan);
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .neon-link:hover {
+        text-shadow: 0 0 8px var(--neon-cyan);
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle password visibility
+        const toggleBtn = document.querySelector('.toggle-password');
+        const passwordInput = document.getElementById('password');
+        
+        if (toggleBtn && passwordInput) {
+            toggleBtn.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                this.textContent = type === 'password' ? '👁️' : '👁️‍🗨️';
+            });
+        }
+
+        // Add focus effects
+        const inputs = document.querySelectorAll('.form-input');
+        inputs.forEach(input => {
+            const icon = input.parentElement.querySelector('.input-icon');
+            
+            input.addEventListener('focus', function() {
+                this.style.background = 'rgba(255, 255, 255, 0.15)';
+                if (icon) icon.style.color = 'var(--neon-cyan)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.style.background = 'rgba(255, 255, 255, 0.1)';
+                if (icon) icon.style.color = '#777';
+            });
+        });
+    });
+</script>
+{% endblock %}

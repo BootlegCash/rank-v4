@@ -1,0 +1,159 @@
+[
+    {
+        "model": "achievements.achievement",
+        "pk": 1,
+        "fields": {
+            "code": "BEER_BEGINNER",
+            "name": "Beer Beginner",
+            "description": "Drink 10 beers/seltzers",
+            "icon": "🍺",
+            "points": 10
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 2,
+        "fields": {
+            "code": "WHISKEY_WARRIOR",
+            "name": "Whiskey Warrior",
+            "description": "Drink 25 whiskey shots",
+            "icon": "🥃",
+            "points": 25
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 3,
+        "fields": {
+            "code": "RUM_RUNNER",
+            "name": "Rum Runner",
+            "description": "Drink 20 rum shots",
+            "icon": "🍹",
+            "points": 20
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 4,
+        "fields": {
+            "code": "TEQUILA_TITAN",
+            "name": "Tequila Titan",
+            "description": "Drink 15 tequila shots",
+            "icon": "🌵",
+            "points": 15
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 5,
+        "fields": {
+            "code": "VODKA_VIRTUOSO",
+            "name": "Vodka Virtuoso",
+            "description": "Drink 20 vodka shots",
+            "icon": "🍸",
+            "points": 20
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 6,
+        "fields": {
+            "code": "FLOCO_FANATIC",
+            "name": "Floco Fanatic",
+            "description": "Drink 10 flocos",
+            "icon": "🍷",
+            "points": 10
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 7,
+        "fields": {
+            "code": "SHOTGUN_STARTER",
+            "name": "Shotgun Starter",
+            "description": "Complete your first shotgun",
+            "icon": "🚀",
+            "points": 5
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 8,
+        "fields": {
+            "code": "SNORKEL_SPECIALIST",
+            "name": "Snorkel Specialist",
+            "description": "Complete your first snorkel",
+            "icon": "🤿",
+            "points": 5
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 9,
+        "fields": {
+            "code": "IRON_STOMACH",
+            "name": "Iron Stomach",
+            "description": "Log at least 20 drinks without throwing up",
+            "icon": "💪",
+            "points": 20
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 10,
+        "fields": {
+            "code": "FIRST_STEPS",
+            "name": "First Steps",
+            "description": "Reach Silver Rank",
+            "icon": "🥈",
+            "points": 30
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 11,
+        "fields": {
+            "code": "CLIMBING_HIGHER",
+            "name": "Climbing Higher",
+            "description": "Reach Gold Rank",
+            "icon": "🥇",
+            "points": 40
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 12,
+        "fields": {
+            "code": "ELITE_DRINKER",
+            "name": "Elite Drinker",
+            "description": "Reach Platinum Rank",
+            "icon": "🔘",
+            "points": 50
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 13,
+        "fields": {
+            "code": "LEGENDARY_DRINKER",
+            "name": "Legendary Drinker",
+            "description": "Reach Diamond Rank",
+            "icon": "💎",
+            "points": 60
+        }
+    },
+    {
+        "model": "achievements.achievement",
+        "pk": 14,
+        "fields": {
+            "code": "STEEZ_MASTER",
+            "name": "Steez Master",
+            "description": "Attain the highest rank: Steez",
+            "icon": "👑",
+            "points": 70
+        }
+    },
+    
+    
+    
+]

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <h2 class="gradient-text">Log Your Drinks for {{ daily_log.date }}</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+            {% for field in form %}
+                <div>
+                    <label>{{ field.label }}</label>
+                    <input type="number" name="{{ field.name }}" value="0" min="0" class="form-input">
+                </div>
+            {% endfor %}
+        </div>
+        <div style="text-align: center; margin-top: 1.5rem;">
+            <button type="submit" class="neon-btn pink-btn" style="width: 100%;">Update Today's Log</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

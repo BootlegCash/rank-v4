@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}{{ month_name }} {{ year }} - Calendar{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+  <!-- Calendar Navigation -->
+  <div class="calendar-header">
+      <a href="{% url 'monthly_calendar' year=prev_year month=prev_month %}" class="calendar-nav-btn">Previous Month</a>
+      <h2 class="calendar-title">{{ month_name }} {{ year }}</h2>
+      <a href="{% url 'monthly_calendar' year=next_year month=next_month %}" class="calendar-nav-btn pink-btn">Next Month</a>
+  </div>
+
+  <!-- Calendar Table -->
+  <table class="calendar-table">
+      <thead>
+          <tr>
+              <th>Sun</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
+              <th>Sat</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for week in weeks %}
+          <tr>
+              {% for day in week %}
+              <td class="{% if not day.is_current_month %}other-month{% elif day.is_today %}today{% else %}day{% endif %}">
+                  {% if day.is_current_month %}
+                  <!-- Make entire cell clickable -->
+                  <a href="{% url 'day_log_detail' year=year month=month day=day.day %}" class="day-cell">
+                      <span class="day-number">{{ day.day }}</span>
+                      {% if day.log %}
+                      <div class="log-summary">
+                          <span>Total Drank: {{ day.log.calculate_alcohol_drank }} ml</span>
+                      </div>
+                      {% else %}
+                      <div class="no-log">No log</div>
+                      {% endif %}
+                  </a>
+                  {% else %}
+                  <span class="day-cell">{{ day.day }}</span>
+                  {% endif %}
+              </td>
+              {% endfor %}
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Container styling */
+.calendar-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Calendar header (navigation) */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+.calendar-title {
+    font-size: 1.8rem;
+    color: var(--neon-cyan);
+    margin: 0;
+    flex: 1;
+}
+.calendar-nav-btn {
+    background: none;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+.pink-btn {
+    border-color: var(--hot-pink);
+    color: var(--hot-pink);
+}
+.calendar-nav-btn:hover {
+    box-shadow: 0 0 15px var(--neon-cyan);
+    background: rgba(0, 254, 252, 0.1);
+}
+
+/* Calendar table styling */
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.calendar-table th {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem;
+    color: #fff;
+}
+.calendar-table td {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 14.28%; /* 100/7 */
+    height: 100px; /* fixed height for uniformity */
+    padding: 0;
+    vertical-align: top;
+    overflow: hidden;
+}
+
+/* Ensure day-cell link fills the table cell */
+.day-cell {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Day number and log info */
+.day-number {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+}
+.log-summary {
+    font-size: 0.8rem;
+    line-height: 1.2;
+    margin-top: 0.3rem;
+}
+.no-log {
+    font-size: 0.8rem;
+    color: #bbb;
+    margin-top: 0.3rem;
+}
+
+/* Styling for days outside the current month */
+.other-month {
+    background: rgba(255, 255, 255, 0.04);
+    color: #777;
+}
+
+/* Highlight today's cell */
+.today {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--neon-cyan);
+    font-weight: bold;
+}
+</style>
+{% endblock %}

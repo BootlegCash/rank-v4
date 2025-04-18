@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}About - Ranked Drinking{% endblock %}
+
+{% block content %}
+<div class="about-container">
+    <!-- Hero Section -->
+    <div class="glass-card hero-section">
+        <h1 class="gradient-text">🍻 What is Ranked Drinking?</h1>
+        <p>Ranked Drinking is a gamified way to track your drinks, share your night, and climb the leaderboard — all while staying safe and having fun.</p>
+    </div>
+
+    <!-- Why It Was Created -->
+    <div class="glass-card section">
+        <h2 class="gradient-text">✨ Why We Built It</h2>
+        <p>
+            This started as a fun idea among friends — how can we make drinking together more memorable and a little less chaotic? 
+            We wanted a way to track our drinks, compete for bragging rights, and keep each other accountable. 
+            Ranked Drinking was born from nights out, inside jokes, and the simple goal of turning parties into stories worth saving.
+        </p>
+    </div>
+
+    <!-- Game Mechanics -->
+    <div class="glass-card section">
+        <h2 class="gradient-text">🎮 How the Game Works</h2>
+        <ul class="about-list">
+            <li><strong>Track your drinks</strong>: Log beers, shots, and mixers in real time.</li>
+            <li><strong>Earn XP</strong>: Get experience points based on what you drink (and lose some if you go too far... 🤢).</li>
+            <li><strong>Level up</strong>: Progress through ranks like Bronze, Silver, Diamond, and ultimately — Steez 👑.</li>
+            <li><strong>Compete with friends</strong>: Add friends, compare stats, and race to the top of the leaderboard.</li>
+            <li><strong>Unlock achievements</strong>: Hit milestones and collect trophies for your wildest (or most responsible) nights.</li>
+        </ul>
+    </div>
+
+    <!-- Ranks -->
+    <div class="glass-card section">
+        <h2 class="gradient-text">🏅 Ranks</h2>
+        <p>Every drink gets you closer to a new rank. But be careful — throwing up sets you back. Here's the current rank ladder:</p>
+        <ul class="about-list ranks">
+            <li>🥉 <strong>Bronze</strong> – 0+ XP</li>
+            <li>🥈 <strong>Silver</strong> – 600+ XP</li>
+            <li>🥇 <strong>Gold</strong> – 1300+ XP</li>
+            <li>🔘 <strong>Platinum</strong> – 3200+ XP</li>
+            <li>💎 <strong>Diamond</strong> – 7300+ XP</li>
+            <li>👑 <strong>Steez</strong> – 15,000+ XP (MAX LEVEL)</li>
+        </ul>
+    </div>
+
+    <!-- Coming Soon -->
+    <div class="glass-card section">
+        <h2 class="gradient-text">📱 What's Next?</h2>
+        <p>We're building a full mobile app so you can take Ranked Drinking to the bar, party, pregame, or wherever your night leads. The app will include:</p>
+        <ul class="about-list">
+            <li>🎉 Custom achievements</li>
+            <li>💬 App avaiable on app store</li>
+            <li>Custom Avatars</li>
+            <li>App avaiable on app store</li>
+            <li>Calender drink logging system</li>
+            <li>Competitions</li>
+            <li>Clickable profiles</li>
+
+        </ul>
+    </div>
+
+    <!-- Final Note -->
+    <div class="glass-card section">
+        <h2 class="gradient-text">🚨 Stay Safe</h2>
+        <p>We created this for fun — but safety is the top priority. Know your limits, hydrate, look out for your friends, and never drink and drive.</p>
+        <a href="{% url 'safety_guidelines' %}" class="neon-btn pink-btn">View Safety Guidelines</a>
+    </div>
+
+    <!-- Signature -->
+    <div class="glass-card footer-note">
+        <p style="text-align: center; color: #aaa; font-size: 0.9rem;">
+            Built by friends. For friends. With good vibes and responsible drinks.  
+        </p>
+    </div>
+</div>
+
+<style>
+.about-container {
+    max-width: 850px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+.hero-section {
+    text-align: center;
+}
+.section {
+    margin-top: 2rem;
+}
+.about-list {
+    margin-top: 1rem;
+    padding-left: 1.5rem;
+}
+.about-list li {
+    margin: 0.75rem 0;
+    line-height: 1.6;
+}
+.ranks li {
+    font-size: 1.1rem;
+}
+.footer-note {
+    margin-top: 3rem;
+    padding: 1rem 2rem;
+}
+</style>
+{% endblock %}

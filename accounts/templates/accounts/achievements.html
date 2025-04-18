@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="achievements-container">
+    <h1 class="gradient-text" style="text-align: center; margin-bottom: 1.5rem;">
+        Your Achievements
+    </h1>
+    
+    <div class="achievements-grid">
+        {% for item in achievements_list %}
+        <div class="achievement-card glass-card">
+            {% if item.achievement.icon %}
+            <div class="achievement-icon">
+                {{ item.achievement.icon }}
+            </div>
+            {% endif %}
+            
+            <div class="achievement-title">
+                {{ item.achievement.name }}
+            </div>
+            
+            <div class="achievement-desc">
+                {{ item.achievement.description }}
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress" style="width: {{ item.progress }}%;"></div>
+            </div>
+            
+            {% if item.is_earned %}
+            <div class="achievement-status unlocked">Unlocked</div>
+            {% else %}
+            <div class="achievement-status locked">Locked ({{ item.progress }}%)</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="{% url 'profile' %}" class="neon-btn">Back to Profile</a>
+    </div>
+</div>
+
+<style>
+/* Container Styling */
+.achievements-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Grid Layout */
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+/* Achievement Card */
+.achievement-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.achievement-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Icon Styling */
+.achievement-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Title and Description */
+.achievement-title {
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+    font-size: 1.1rem;
+}
+.achievement-desc {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 0.5rem;
+}
+
+/* Progress Bar Styling */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+}
+.progress {
+    height: 100%;
+    background: linear-gradient(90deg, var(--hot-pink), var(--neon-cyan));
+    transition: width 0.3s ease;
+}
+
+/* Status Badge */
+.achievement-status {
+    font-weight: bold;
+    margin-top: auto;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+}
+.unlocked {
+    color: limegreen;
+    border: 1px solid limegreen;
+}
+.locked {
+    color: orange;
+    border: 1px solid orange;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Drink Feed - Neon Nightlife Hub{% endblock %}
+
+{% block content %}
+<div class="feed-container">
+    <!-- Feed Header -->
+    <div class="feed-header glass-card">
+        <h1 class="neon-glow">🍻 Nightlife Feed</h1>
+        <a href="{% url 'create_post' %}" class="neon-btn pink-btn">New Post</a>
+    </div>
+
+    <!-- Posts Feed -->
+    <div class="posts-feed">
+        {% for post in posts %}
+        <div class="post glass-card" id="post-{{ post.id }}">
+            <div class="post-header">
+                <div class="post-user-info">
+                    <span class="user-avatar">🍺</span>
+                    <div class="post-author-info" style="margin-top: 10px; display: flex; align-items: center; font-family: sans-serif;">
+                        <span class="display-name" style="font-size: 1.2rem; font-weight: bold; margin-right: 0.5rem;">
+                          {{ post.user.user.profile.display_name }}
+                        </span>
+                        <span class="username" style="font-size: 1rem; color: #888;">
+                          ({{ post.user.user.username }})
+                        </span>
+                        <span class="post-time" style="font-size: 0.8rem; color: #aaa; margin-left: 1rem;">
+                          {{ post.created_at|timesince }} ago
+                        </span>
+                      </div>
+                      
+                </div>
+            </div>
+            
+            <div class="post-content">
+                {{ post.content|linebreaksbr }}
+            </div>
+            
+            <div class="post-actions">
+                <button class="like-btn" data-post-id="{{ post.id }}">
+                    {% if request.user.is_authenticated and request.user.profile in post.likes.all %}
+                        ❤️
+                    {% else %}
+                        🤍
+                    {% endif %}
+                    <span class="like-count">{{ post.likes.count }}</span>
+                </button>
+            </div>
+            
+            <div class="post-stats">
+                <span class="like-stat">{{ post.likes.count }} like{{ post.likes.count|pluralize }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-posts glass-card">
+            <p>No posts yet. Be the first to share your night!</p>
+            <a href="{% url 'create_post' %}" class="neon-btn">Create Post</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .feed-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .feed-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .feed-header h1 {
+        margin: 0;
+        font-size: 1.8rem;
+        text-shadow: 0 0 10px rgba(255, 20, 147, 0.7);
+    }
+    
+    .posts-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .post {
+        padding: 20px;
+        border-radius: 15px;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .post:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(255, 20, 147, 0.2);
+    }
+    
+    .post-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+    
+    .post-user-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .user-avatar {
+        font-size: 1.8rem;
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 20, 147, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--hot-pink);
+    }
+    
+    .username {
+        font-weight: bold;
+        color: var(--hot-pink);
+        display: block;
+        font-size: 1.1rem;
+    }
+    
+    .post-time {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        color: #ccc;
+    }
+    
+    .post-content {
+        margin: 15px 0;
+        line-height: 1.6;
+        font-size: 1.1rem;
+        padding: 0 10px;
+    }
+    
+    .post-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .post-stats {
+        font-size: 0.9rem;
+        color: #aaa;
+        margin-top: 5px;
+    }
+    
+    .like-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 5px 12px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s ease;
+    }
+    
+    .like-btn:hover {
+        background: rgba(255, 20, 147, 0.2);
+    }
+    
+    .no-posts {
+        text-align: center;
+        padding: 40px 20px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 15px;
+    }
+    
+    .no-posts p {
+        margin-bottom: 20px;
+        font-size: 1.2rem;
+        color: #ccc;
+    }
+    
+    .neon-btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: rgba(0, 254, 252, 0.1);
+        color: white;
+        border: 1px solid var(--neon-cyan);
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .neon-btn:hover {
+        background: rgba(0, 254, 252, 0.3);
+        box-shadow: 0 0 15px rgba(0, 254, 252, 0.5);
+        transform: translateY(-2px);
+    }
+    
+    .pink-btn {
+        background: rgba(255, 20, 147, 0.1);
+        border: 1px solid var(--hot-pink);
+    }
+    
+    .pink-btn:hover {
+        background: rgba(255, 20, 147, 0.3);
+        box-shadow: 0 0 15px rgba(255, 20, 147, 0.5);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Like button functionality
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.addEventListener('click', async function() {
+                const postId = this.dataset.postId;
+                const likeBtn = this;
+                const likeCountSpan = this.querySelector('.like-count');
+                const currentLikes = parseInt(likeCountSpan.textContent);
+                const isLiked = this.innerHTML.includes('❤️');
+                const postElement = document.getElementById(`post-${postId}`);
+                
+                // Immediate UI update
+                likeBtn.innerHTML = isLiked ? `🤍 <span class="like-count">${currentLikes - 1}</span>` : `❤️ <span class="like-count">${currentLikes + 1}</span>`;
+                likeBtn.style.color = isLiked ? 'white' : 'var(--hot-pink)';
+                
+                // Update stats display
+                const likeStat = postElement.querySelector('.like-stat');
+                if (likeStat) {
+                    likeStat.textContent = `${isLiked ? currentLikes - 1 : currentLikes + 1} like${isLiked ? (currentLikes - 1 !== 1 ? 's' : '') : (currentLikes + 1 !== 1 ? 's' : '')}`;
+                }
+
+                try {
+                    const response = await fetch(`/accounts/posts/${postId}/like/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `post_id=${postId}`
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to like post');
+                    }
+
+                    const data = await response.json();
+                    
+                    // Verify server response matches our UI
+                    if ((data.liked && isLiked) || (!data.liked && !isLiked)) {
+                        // If mismatch, revert UI to server state
+                        likeBtn.innerHTML = data.liked ? `❤️ <span class="like-count">${data.like_count}</span>` : `🤍 <span class="like-count">${data.like_count}</span>`;
+                        likeBtn.style.color = data.liked ? 'var(--hot-pink)' : 'white';
+                        if (likeStat) {
+                            likeStat.textContent = `${data.like_count} like${data.like_count !== 1 ? 's' : ''}`;
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    // Revert to original state if error occurs
+                    likeBtn.innerHTML = isLiked ? `❤️ <span class="like-count">${currentLikes}</span>` : `🤍 <span class="like-count">${currentLikes}</span>`;
+                    likeBtn.style.color = isLiked ? 'var(--hot-pink)' : 'white';
+                    if (likeStat) {
+                        likeStat.textContent = `${currentLikes} like${currentLikes !== 1 ? 's' : ''}`;
+                    }
+                    alert('Failed to update like. Please try again.');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

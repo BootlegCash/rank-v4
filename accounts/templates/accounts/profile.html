@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-content">
+        <!-- Updated Profile Header with Display Name and Username -->
+        <div class="glass-card profile-header-card">
+            <div class="profile-header-main">
+                <div class="username-with-rank">
+                    <div>
+                        <h1 class="gradient-text">{{ profile.display_name }}</h1>
+                        <p class="username-secondary">@{{ profile.user.username }}</p>
+                    </div>
+                    <div class="rank-badge" data-rank="{{ profile.rank }}">
+                        <span class="rank-icon">
+                            {% if profile.rank == "Bronze" %}🥉
+                            {% elif profile.rank == "Silver" %}🥈
+                            {% elif profile.rank == "Gold" %}🥇
+                            {% elif profile.rank == "Platinum" %}🔘
+                            {% elif profile.rank == "Diamond" %}💎
+                            {% else %}👑{% endif %}
+                        </span>
+                        <span class="rank-name">{{ profile.rank }}</span>
+                    </div>
+                </div>
+                
+                <div class="xp-display">
+                    <div class="xp-bar-container">
+                        <div class="xp-bar">
+                            <div class="xp-progress" style="width: {{ profile.xp_percentage }}%;"></div>
+                        </div>
+                        <div class="xp-text">
+                            <span>{{ profile.xp }} XP</span>
+                            {% if profile.rank != "Steez" %}
+                                <span>{{ profile.xp_to_next_level }} to next rank</span>
+                            {% else %}
+                                <span>MAX RANK</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {# Home and Logout buttons removed #}
+        </div>
+        <!-- New Achievements Link Section -->
+<div class="glass-card" style="text-align: center; margin-top: 1.5rem;">
+    <a href="{% url 'achievements' %}" class="neon-btn">View Achievements</a>
+  </div>
+
+        <!-- Drink Statistics Section -->
+        <div class="glass-card">
+            <h2 class="gradient-text">Drink Stats</h2>
+            <div class="stats-grid three-column">
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🍺</span>
+                        <span>{{ profile.beer }}</span>
+                    </div>
+                    <div class="stat-label">Beers/Seltzers</div>
+                    <div class="stat-subtext">17 ml alcohol each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🥃</span>
+                        <span>{{ profile.floco }}</span>
+                    </div>
+                    <div class="stat-label">Flocos</div>
+                    <div class="stat-subtext">43 ml alcohol each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🍹</span>
+                        <span>{{ profile.rum }}</span>
+                    </div>
+                    <div class="stat-label">Rum Shots</div>
+                    <div class="stat-subtext">9 ml alcohol each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🥃</span>
+                        <span>{{ profile.whiskey }}</span>
+                    </div>
+                    <div class="stat-label">Whiskey Shots</div>
+                    <div class="stat-subtext">14 ml alcohol each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🍸</span>
+                        <span>{{ profile.vodka }}</span>
+                    </div>
+                    <div class="stat-label">Vodka Shots</div>
+                    <div class="stat-subtext">18 ml alcohol each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🍶</span>
+                        <span>{{ profile.tequila }}</span>
+                    </div>
+                    <div class="stat-label">Tequila Shots</div>
+                    <div class="stat-subtext">23 ml alcohol each</div>
+                </div>
+            </div>
+            <div class="total-alcohol">
+                <span class="gradient-text">Total Alcohol Consumed: {{ profile.calculate_alcohol_drank }} ml</span>
+            </div>
+        </div>
+
+        <!-- Performance Metrics Section -->
+        <div class="glass-card">
+            <h2 class="gradient-text">Performance</h2>
+            <div class="stats-grid two-column">
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">💥</span>
+                        <span>{{ profile.shotguns }}</span>
+                    </div>
+                    <div class="stat-label">Shotguns</div>
+                    <div class="stat-subtext">+5 XP each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🤿</span>
+                        <span>{{ profile.snorkels }}</span>
+                    </div>
+                    <div class="stat-label">Snorkels</div>
+                    <div class="stat-subtext">+15 XP each</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        <span class="stat-icon">🤢</span>
+                        <span>{{ profile.thrown_up }}</span>
+                    </div>
+                    <div class="stat-label">Thrown Up</div>
+                    <div class="stat-subtext">-40 XP each</div>
+                    <!-- Somewhere in your profile.html -->
+                    <a href="{% url 'monthly_calendar' %}" class="neon-btn">View Full Calendar</a>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Section (Unchanged) -->
+    <footer class="profile-footer">
+        <div class="footer-grid">
+            <div class="footer-section">
+                <h3 class="gradient-text">Safety</h3>
+                <a href="{% url 'safety_guidelines' %}" class="footer-link">Drinking Guidelines</a>
+                <a href="https://www.niaaa.nih.gov/" target="_blank" class="footer-link">Alcohol Education</a>
+            </div>
+            
+            <div class="footer-section">
+                <h3 class="gradient-text">Information</h3>
+                <a href="{% url 'about' %}" class="footer-link">About</a>
+                <a href="https://forms.gle/TZYXoWXfE7VEF2yX9" class="footer-link">Send Feedback</a>
+            </div>
+            
+            
+            <div class="footer-section">
+                <h3 class="gradient-text">Account</h3>
+                <a href="{% url 'profile' %}" class="footer-link">Your Profile</a>
+                <a href="{% url 'logout' %}" class="footer-link">Logout</a>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <p>© 2023 DrinkMasters - Drink Responsibly</p>
+        </div>
+    </footer>
+</div>
+
+<!-- Inline styles for secondary username and footer adjustments -->
+<style>
+    .username-secondary {
+        font-size: 0.8rem;
+        color: #ccc;
+        margin-top: 0.2rem;
+    }
+    /* Updated footer styling: removed absolute positioning for natural flow */
+    .profile-footer {
+        background: rgba(10, 15, 31, 0.9);
+        border-top: 1px solid var(--glass-border);
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+    .footer-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .footer-section {
+        text-align: center;
+    }
+    .footer-section h3 {
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+    }
+    .footer-link {
+        display: block;
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0.5rem 0;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    .footer-link:hover {
+        color: var(--neon-cyan);
+        transform: translateX(5px);
+    }
+    .footer-bottom {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(0, 254, 252, 0.2);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}

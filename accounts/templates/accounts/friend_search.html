@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card" style="max-width:600px; margin: 0 auto;">
+    <h2 class="gradient-text" style="text-align: center;">Find Friends</h2>
+    <form method="get" action="{% url 'friend_search' %}">
+        <input type="text" name="q" placeholder="Search by username..." value="{{ query }}" class="form-input" style="width:100%; padding:0.5rem; margin-top:1rem;">
+        <button type="submit" class="neon-btn" style="margin-top:1rem;">Search</button>
+    </form>
+    
+    {% if query %}
+        <h3 style="margin-top:1.5rem;">Results:</h3>
+        {% if results %}
+            <ul style="list-style-type: none; padding: 0;">
+                {% for profile in results %}
+                    <li style="padding: 0.8rem; background: rgba(255,255,255,0.03); margin: 0.5rem 0; border-radius: 8px;">
+                        <div style="display: flex; align-items: center;">
+                            <!-- You can add an avatar here if available -->
+                            <div style="margin-right: 1rem;">
+                                <span style="font-size: 1.8rem;">👤</span>
+                            </div>
+                            <div>
+                                <a href="{% url 'friend_profile' profile.user.username %}" class="neon-link" style="font-weight:bold; font-size:1.1rem;">
+                                    {{ profile.user.username }}
+                                </a>
+                                <div style="font-size: 0.9rem; color: #ccc;">
+                                    {{ profile.xp }} XP - {{ profile.rank }}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p style="margin-top:1rem;">No matching users found.</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

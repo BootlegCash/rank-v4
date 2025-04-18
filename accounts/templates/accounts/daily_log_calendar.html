@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <h2 class="gradient-text" style="text-align: center;">Your Drinking Calendar</h2>
+    {% if logs %}
+        <ul style="list-style: none; padding: 0;">
+            {% for log in logs %}
+                <li style="padding: 0.8rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 0.5rem;">
+                    <strong>{{ log.date }}</strong>:
+                    Beers: {{ log.beer }}, Flocos: {{ log.floco }}, Rum: {{ log.rum }},
+                    Whiskey: {{ log.whiskey }}, Vodka: {{ log.vodka }}, Tequila: {{ log.tequila }},
+                    Shotguns: {{ log.shotguns }}, Snorkels: {{ log.snorkels }}, Thrown Up: {{ log.thrown_up }},
+                    XP: {{ log.xp }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No logs available for your drinking history.</p>
+    {% endif %}
+    
+    </div>
+</div>
+{% endblock %}

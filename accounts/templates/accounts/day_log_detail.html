@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <h2 class="gradient-text" style="text-align: center;">Daily Log for {{ log_date }}</h2>
+    {% if daily_log %}
+        <ul style="list-style: none; padding: 0;">
+            <li>Beers: {{ daily_log.beer }}</li>
+            <li>Flocos: {{ daily_log.floco }}</li>
+            <li>Rum: {{ daily_log.rum }}</li>
+            <li>Whiskey: {{ daily_log.whiskey }}</li>
+            <li>Vodka: {{ daily_log.vodka }}</li>
+            <li>Tequila: {{ daily_log.tequila }}</li>
+            <li>Shotguns: {{ daily_log.shotguns }}</li>
+            <li>Snorkels: {{ daily_log.snorkels }}</li>
+            <li>Thrown Up: {{ daily_log.thrown_up }}</li>
+            <li>XP: {{ daily_log.xp }}</li>
+        </ul>
+    {% else %}
+        <p>No log recorded for this day.</p>
+    {% endif %}
+    <a href="{% url 'monthly_calendar' %}" class="neon-btn" style="display: block; margin-top: 1rem;">Back to Calendar</a>
+</div>
+{% endblock %}

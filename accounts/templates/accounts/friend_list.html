@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card">
+    <h2 class="gradient-text">Your Friends</h2>
+    
+    <div style="margin-top: 1.5rem;">
+        {% if friends %}
+            {% for friend in friends %}
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 1rem 0; padding: 0.8rem; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--hot-pink); margin-right: 1rem;">
+                        <!-- Optionally display an avatar -->
+                    </div>
+                    <!-- Friend username linking to detailed friend profile -->
+                    <p style="margin: 0;">
+                        <a href="{% url 'friend_profile' friend.user.username %}" class="neon-link" style="text-decoration: none; color: inherit;">
+                          {% if friend.display_name %}
+                            {{ friend.display_name }}
+                            <span class="username-secondary">@{{ friend.user.username }}</span>
+                          {% else %}
+                            <span class="username-secondary">@{{ friend.user.username }}</span>
+                          {% endif %}
+                        </a>
+                      </p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <p style="margin: 0;">{{ friend.xp }} XP</p>
+                    <!-- Form to remove friend -->
+                    <form method="post" action="{% url 'remove_friend' friend.id %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="neon-btn pink-btn" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">Remove</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>You have no friends yet. Add some!</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="glass-card">
+    <h3>Friend Requests</h3>
+    
+    <div style="margin-top: 1rem;">
+        <h4>Received</h4>
+        {% if received_requests %}
+            {% for request in received_requests %}
+            <div style="display: flex; align-items: center; justify-content: space-between; margin: 1rem 0; padding: 0.8rem; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <p style="margin: 0;">{{ request.from_user.user.username }}</p>
+                <div>
+                    <a href="{% url 'accept_friend_request' request.id %}" class="neon-btn" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">Accept</a>
+                    <a href="{% url 'reject_friend_request' request.id %}" class="neon-btn pink-btn" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">Reject</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No pending received requests.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Link to search for potential friends -->
+    <div style="margin-top: 1.5rem; text-align: center;">
+        <a href="{% url 'friend_search' %}" class="neon-btn">Add Friend</a>
+    </div>
+</div>
+{% endblock %}

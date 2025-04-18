@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}DrinkMasters - Safety Guidelines{% endblock %}
+
+{% block content %}
+<div class="safety-container">
+    <div class="glass-card safety-header">
+        <h1 class="gradient-text">Drink Safely</h1>
+        <p class="subtitle">Enjoy responsibly with these essential guidelines</p>
+    </div>
+
+    <div class="glass-card safety-card">
+        <h2 class="gradient-text">💧 Hydration Basics</h2>
+        <div class="safety-grid">
+            <div class="safety-item">
+                <div class="safety-icon">1:1</div>
+                <h3>Water Ratio</h3>
+                <p>Follow the <strong>1:1 rule</strong> - one glass of water for every alcoholic drink</p>
+            </div>
+            <div class="safety-item">
+                <div class="safety-icon">🥤</div>
+                <h3>Pre-Hydration</h3>
+                <p>Drink 2 glasses of water <strong>before</strong> you start drinking alcohol</p>
+            </div>
+            <div class="safety-item">
+                <div class="safety-icon">🌙</div>
+                <h3>Before Bed</h3>
+                <p>Drink at least <strong>16oz (500ml)</strong> water before sleeping</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card safety-card">
+        <h2 class="gradient-text">⚠️ Critical Safety Rules</h2>
+        <div class="safety-list">
+            <div class="safety-rule">
+                <span class="rule-number">1</span>
+                <div class="rule-content">
+                    <h3>Know Your Limits</h3>
+                    <p>Track your drinks and stop before you feel impaired</p>
+                </div>
+            </div>
+            <div class="safety-rule">
+                <span class="rule-number">2</span>
+                <div class="rule-content">
+                    <h3>Never Drink and Drive</h3>
+                    <p>Plan for a designated driver or ride service</p>
+                </div>
+            </div>
+            <div class="safety-rule">
+                <span class="rule-number">3</span>
+                <div class="rule-content">
+                    <h3>Eat Before Drinking</h3>
+                    <p>Food slows alcohol absorption - prioritize protein and carbs</p>
+                </div>
+            </div>
+            <div class="safety-rule">
+                <span class="rule-number">4</span>
+                <div class="rule-content">
+                    <h3>Watch Your Friends</h3>
+                    <p>Use the <strong>Buddy System</strong> - never leave anyone alone</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card safety-card">
+        <h2 class="gradient-text">🚨 Emergency Signs</h2>
+        <div class="warning-grid">
+            <div class="warning-item danger">
+                <div class="warning-icon">‼️</div>
+                <h3>Alcohol Poisoning</h3>
+                <ul>
+                    <li>Confusion or unconsciousness</li>
+                    <li>Vomiting while asleep</li>
+                    <li>Slow or irregular breathing</li>
+                    <li>Cold/clammy skin</li>
+                </ul>
+                <p class="emergency-action">Call emergency services immediately</p>
+            </div>
+            <div class="warning-item caution">
+                <div class="warning-icon">⚠️</div>
+                <h3>Danger Zone</h3>
+                <ul>
+                    <li>Slurred speech</li>
+                    <li>Loss of coordination</li>
+                    <li>Aggressive behavior</li>
+                    <li>Memory blackouts</li>
+                </ul>
+                <p class="emergency-action">Stop drinking and hydrate</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card resources-card">
+        <h2 class="gradient-text">📚 Additional Resources</h2>
+        <div class="resource-buttons">
+            <a href="https://www.niaaa.nih.gov/" class="neon-btn" target="_blank">NIH Alcohol Guidelines</a>
+            <a href="https://www.redcross.org/take-a-class/cpr" class="neon-btn pink-btn" target="_blank">CPR Training</a>
+            <a href="tel:911" class="neon-btn emergency-btn">Emergency: 911</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Safety Page Specific Styles */
+    .safety-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+    
+    .safety-header {
+        text-align: center;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .safety-header .subtitle {
+        color: rgba(255,255,255,0.7);
+        margin-top: 0.5rem;
+    }
+    
+    .safety-card {
+        margin-bottom: 2rem;
+    }
+    
+    .safety-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .safety-item {
+        background: rgba(0, 254, 252, 0.05);
+        border: 1px solid rgba(0, 254, 252, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .safety-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: var(--neon-cyan);
+    }
+    
+    .safety-list {
+        margin-top: 1.5rem;
+    }
+    
+    .safety-rule {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(0,254,252,0.1);
+    }
+    
+    .safety-rule:last-child {
+        border-bottom: none;
+    }
+    
+    .rule-number {
+        background: var(--hot-pink);
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+    
+    .warning-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .warning-item {
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+    
+    .warning-item.danger {
+        background: rgba(255, 0, 0, 0.1);
+        border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+    
+    .warning-item.caution {
+        background: rgba(255, 165, 0, 0.1);
+        border: 1px solid rgba(255, 165, 0, 0.3);
+    }
+    
+    .warning-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .emergency-action {
+        font-weight: bold;
+        margin-top: 1rem;
+        color: var(--hot-pink);
+    }
+    
+    .resources-card {
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .resource-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+    }
+    
+    .emergency-btn {
+        background: #ff0000;
+        border-color: #ff0000;
+        animation: pulse-emergency 1.5s infinite;
+    }
+    
+    @keyframes pulse-emergency {
+        0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .safety-grid, .warning-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .safety-item, .warning-item {
+            padding: 1.25rem;
+        }
+        
+        .resource-buttons {
+            flex-direction: column;
+        }
+        
+        .resource-buttons .neon-btn {
+            width: 100%;
+            margin: 0.25rem 0;
+        }
+    }
+</style>
+{% endblock %}

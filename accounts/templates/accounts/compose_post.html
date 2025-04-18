@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="compose-modal">
+    <div class="compose-container glass-card">
+        <div class="compose-header">
+            <button class="close-btn" onclick="window.location.href='{% url 'welcome' %}'">✕</button>
+            <h2>Create Post</h2>
+        </div>
+        
+        <form method="POST" action="{% url 'create_post' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <textarea name="content" maxlength="280" placeholder="What's happening in your night?" autofocus></textarea>
+            </div>
+            <div class="compose-footer">
+                <div class="character-counter">280</div>
+                <button type="submit" class="neon-btn pink-btn">Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .compose-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .compose-container {
+        width: 90%;
+        max-width: 600px;
+        padding: 20px;
+        border-radius: 15px;
+    }
+    
+    .compose-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .close-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        margin-right: 15px;
+        cursor: pointer;
+    }
+    
+    .close-btn:hover {
+        color: var(--hot-pink);
+    }
+    
+    .form-group textarea {
+        width: 100%;
+        min-height: 200px;
+        background: rgba(0,0,0,0.2);
+        border: 1px solid var(--neon-cyan);
+        color: white;
+        padding: 15px;
+        font-size: 1.1rem;
+        resize: none;
+        border-radius: 10px;
+    }
+    
+    .compose-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+    }
+    
+    .character-counter {
+        color: var(--neon-cyan);
+    }
+</style>
+
+<script>
+    // Character counter
+    const textarea = document.querySelector('textarea');
+    const counter = document.querySelector('.character-counter');
+    
+    textarea.addEventListener('input', function() {
+        const remaining = 280 - this.value.length;
+        counter.textContent = remaining;
+        
+        if (remaining < 0) {
+            counter.style.color = 'red';
+        } else if (remaining < 20) {
+            counter.style.color = 'orange';
+        } else {
+            counter.style.color = 'var(--neon-cyan)';
+        }
+    });
+</script>
+{% endblock %}

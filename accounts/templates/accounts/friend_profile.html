@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="glass-card profile-header-card">
+        <div class="profile-header-main">
+            <div class="username-with-rank">
+                <h1 class="gradient-text">{{ friend_profile.display_name }}</h1>
+                        <p class="username-secondary">@{{ friend_profile.user.username }}</p>
+                <div class="rank-badge" data-rank="{{ friend_profile.rank }}">
+                    <span class="rank-icon">
+                        {% if friend_profile.rank == "Bronze" %}
+                            🥉
+                        {% elif friend_profile.rank == "Silver" %}
+                            🥈
+                        {% elif friend_profile.rank == "Gold" %}
+                            🥇
+                        {% elif friend_profile.rank == "Platinum" %}
+                            🔘
+                        {% elif friend_profile.rank == "Diamond" %}
+                            💎
+                        {% else %}
+                            👑
+                        {% endif %}
+                    </span>
+                    <span class="rank-name">{{ friend_profile.rank }}</span>
+                </div>
+            </div>
+            <div class="xp-display">
+                <div class="xp-bar-container">
+                    <div class="xp-bar">
+                        <div class="xp-progress" style="width: {{ friend_profile.xp_percentage }}%;"></div>
+                    </div>
+                    <div class="xp-text">
+                        <span>{{ friend_profile.xp }} XP</span>
+                        {% if friend_profile.rank != "Steez" %}
+                            <span>{{ friend_profile.xp_to_next_level }} XP to next level</span>
+                        {% else %}
+                            <span>MAX RANK</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="profile-actions" style="margin-top: 1rem;">
+            <a href="{% url 'friend_list' %}" class="neon-btn">Back to Friends</a>
+            {% if is_friend %}
+            <form method="post" action="{% url 'remove_friend' friend_profile.id %}">
+                {% csrf_token %}
+                <button type="submit" class="neon-btn pink-btn">Remove Friend</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'send_friend_request' %}">
+                {% csrf_token %}
+                <input type="hidden" name="username" value="{{ friend_profile.user.username }}">
+                <button type="submit" class="neon-btn">Add Friend</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Drink Statistics Section -->
+    <div class="glass-card">
+        <h2 class="gradient-text">Drink Stats</h2>
+        <div class="stats-grid three-column">
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🍺</span>
+                    <span>{{ friend_profile.beer }}</span>
+                </div>
+                <div class="stat-label">Beers/Seltzers</div>
+                <div class="stat-subtext">17 ml each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🥃</span>
+                    <span>{{ friend_profile.floco }}</span>
+                </div>
+                <div class="stat-label">Flocos</div>
+                <div class="stat-subtext">43 ml each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🍹</span>
+                    <span>{{ friend_profile.rum }}</span>
+                </div>
+                <div class="stat-label">Rum Shots</div>
+                <div class="stat-subtext">9 ml each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🥃</span>
+                    <span>{{ friend_profile.whiskey }}</span>
+                </div>
+                <div class="stat-label">Whiskey Shots</div>
+                <div class="stat-subtext">14 ml each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🍸</span>
+                    <span>{{ friend_profile.vodka }}</span>
+                </div>
+                <div class="stat-label">Vodka Shots</div>
+                <div class="stat-subtext">18 ml each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🍶</span>
+                    <span>{{ friend_profile.tequila }}</span>
+                </div>
+                <div class="stat-label">Tequila Shots</div>
+                <div class="stat-subtext">23 ml each</div>
+            </div>
+        </div>
+        <div class="total-alcohol" style="text-align: center; margin-top: 1rem;">
+            <span class="gradient-text">Total Alcohol Consumed: {{ friend_profile.calculate_alcohol_drank }} ml</span>
+        </div>
+    </div>
+
+    <!-- Performance Metrics Section -->
+    <div class="glass-card">
+        <h2 class="gradient-text">Performance</h2>
+        <div class="stats-grid two-column">
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">💥</span>
+                    <span>{{ friend_profile.shotguns }}</span>
+                </div>
+                <div class="stat-label">Shotguns</div>
+                <div class="stat-subtext">+5 XP each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🤿</span>
+                    <span>{{ friend_profile.snorkels }}</span>
+                </div>
+                <div class="stat-label">Snorkels</div>
+                <div class="stat-subtext">+15 XP each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">🤢</span>
+                    <span>{{ friend_profile.thrown_up }}</span>
+                </div>
+                <div class="stat-label">Thrown Up</div>
+                <div class="stat-subtext">-40 XP each</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    <span class="stat-icon">⚡</span>
+                    <span>{{ friend_profile.calculate_xp }}</span>
+                </div>
+                <div class="stat-label">Total XP</div>
+                <div class="stat-subtext">Current Rank: {{ friend_profile.rank }}</div>
+            </div>
+        </div>
+    </div>
+    
+<!-- Achievements Section in friend_profile.html -->
+<div class="glass-card">
+    <h2 class="gradient-text">Achievements</h2>
+    <div>
+        {% with achievements=friend_profile.get_achievements %}
+            {% if achievements %}
+                <ul style="list-style-type: none; padding: 0;">
+                    {% for achievement in achievements %}
+                    <li style="background: rgba(0,254,252,0.1); margin: 0.5rem 0; padding: 0.5rem; border-radius: 5px;">
+                        {{ achievement }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p style="text-align: center;">No achievements yet.</p>
+            {% endif %}
+        {% endwith %}
+    </div>
+</div>
+</div>
+
+<style>
+/* Basic styling for friend profile page */
+.profile-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+    align-items: center;
+}
+
+.profile-header-card, .glass-card {
+    width: 100%;
+    max-width: 600px;
+}
+
+.stats-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.three-column {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.two-column {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.stat-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+</style>
+{% endblock %}
