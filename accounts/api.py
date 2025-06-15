@@ -14,12 +14,20 @@ from .models import DailyLog
 def user_profile(request):
     profile = request.user.profile
     return Response({
-        "id": request.user.id,
         "username": request.user.username,
         "email": request.user.email,
         "xp": profile.xp,
         "rank": profile.rank,
-        "total_alcohol": profile.calculate_alcohol_drank()
+        "beer": profile.beer,
+        "floco": profile.floco,
+        "rum": profile.rum,
+        "whiskey": profile.whiskey,
+        "vodka": profile.vodka,
+        "tequila": profile.tequila,
+        "shotguns": profile.shotguns,
+        "snorkels": profile.snorkels,
+        "thrown_up": profile.thrown_up,
+        "total_alcohol": profile.calculate_alcohol_drank(),
     })
 
 class DailyLogViewSet(viewsets.ModelViewSet):
