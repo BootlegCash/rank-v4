@@ -28,7 +28,10 @@ SECRET_KEY = 'django-insecure-pk*b+9_&mjh@986gny-u!yuozy5xm7n$xz8mtvc-j!=27u&@$d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'ranked-0xtx.onrender.com',
+    'localhost',  # optional: for local development
+]
 
 
 # Application definition
@@ -42,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'achievements',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -130,3 +134,8 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ]
+}
