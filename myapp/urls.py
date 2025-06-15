@@ -11,7 +11,6 @@ urlpatterns = [
 
     # App URLs
     path('accounts/', include('accounts.urls')),
-    path('competitions/', include('competitions.urls')),
 
     # DRF API routes (token auth, log drink, profile info)
     path('api/', include('accounts.api_urls')),  # this should include token, log_drink, profile endpoints
