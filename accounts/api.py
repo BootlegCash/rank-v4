@@ -8,6 +8,8 @@ from .models import Profile
 from django.contrib.auth.models import User
 from .serializers import DailyLogSerializer
 from .models import DailyLog
+from .views import current_log_date
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
