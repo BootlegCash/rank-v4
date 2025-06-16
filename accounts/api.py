@@ -1,6 +1,5 @@
 # accounts/api.py
 from rest_framework import viewsets, permissions
-from rest_framework import status
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +8,8 @@ from .models import Profile
 from django.contrib.auth.models import User
 from .serializers import DailyLogSerializer
 from .models import DailyLog
+from rest_framework import status
+from .utils import current_log_date  # make sure this is imported
 from .views import current_log_date
 
 
@@ -33,7 +34,32 @@ def user_profile(request):
         "total_alcohol": profile.calculate_alcohol_drank(),
     })
 
+
 class DailyLogViewSet(viewsets.ModelViewSet):
+    serializer_class = DailyLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        today = current_log_date()
+        return DailyLog.objects.filter(profile=self.request.user.profile, date=today)
+
+    def perform_create(self, serializer):
+        profile = self.request.user.profile
+        date = current_log_date()
+
+        # Save the daily log
+        log = serializer.save(profile=profile, date=date)
+
+        # Update the profile totals
+        for field in ['beer', 'floco', 'rum', 'whiskey', 'vodka', 'tequila']:
+            setattr(profile, field, getattr(profile, field) + getattr(log, field))
+
+        profile.shotguns += log.shotguns
+        profile.snorkels += log.snorkels
+        profile.thrown_up += 1 if log.thrown_up else 0
+        profile.xp += log.xp
+        profile.save()
+
     serializer_class = DailyLogSerializer
     permission_classes = [permissions.IsAuthenticated]
 
