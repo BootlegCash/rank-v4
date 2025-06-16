@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from .serializers import DailyLogSerializer
 from .models import DailyLog
 from rest_framework import status
-from .utils import current_log_date  # make sure this is imported
+
 from .views import current_log_date
 
 
