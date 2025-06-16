@@ -47,13 +47,21 @@ class DailyLogViewSet(viewsets.ModelViewSet):
         log, created = DailyLog.objects.get_or_create(profile=profile, date=date)
 
         # Update fields based on incoming data
-        for field in ['beer', 'floco', 'rum', 'whiskey', 'vodka', 'tequila', 'shotguns', 'snorkels', 'thrown_up']:
+        fields = ['beer', 'floco', 'rum', 'whiskey', 'vodka', 'tequila', 'shotguns', 'snorkels', 'thrown_up']
+        for field in fields:
             if field in data:
-                setattr(log, field, getattr(log, field, 0) + int(data[field]))
+                try:
+                    value = int(data[field])
+                    setattr(log, field, getattr(log, field, 0) + value)
+                except (ValueError, TypeError):
+                    return Response(
+                        {'error': f'Invalid value for {field}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
         # Recalculate XP
         log.xp = log.calculate_xp()
         log.save()
 
         serializer = self.get_serializer(log)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
