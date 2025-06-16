@@ -31,10 +31,6 @@ def user_profile(request):
     })
 
 class DailyLogViewSet(viewsets.ModelViewSet):
-    """
-    GET  /api/log_drink/         → list today's log
-    POST /api/log_drink/         → update (or create) today's log
-    """
     serializer_class = DailyLogSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -42,8 +38,22 @@ class DailyLogViewSet(viewsets.ModelViewSet):
         today = current_log_date()
         return DailyLog.objects.filter(profile=self.request.user.profile, date=today)
 
-    def perform_create(self, serializer):
-        serializer.save(
-            profile=self.request.user.profile,
-            date=current_log_date()
-        )
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        profile = request.user.profile
+        date = current_log_date()
+
+        # Get or create the DailyLog for today
+        log, created = DailyLog.objects.get_or_create(profile=profile, date=date)
+
+        # Update fields based on incoming data
+        for field in ['beer', 'floco', 'rum', 'whiskey', 'vodka', 'tequila', 'shotguns', 'snorkels', 'thrown_up']:
+            if field in data:
+                setattr(log, field, getattr(log, field, 0) + int(data[field]))
+
+        # Recalculate XP
+        log.xp = log.calculate_xp()
+        log.save()
+
+        serializer = self.get_serializer(log)
+        return Response(serializer.data)
