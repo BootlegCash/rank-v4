@@ -38,6 +38,6 @@ urlpatterns = [
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
     path('api/profile/', api.user_profile, name='api_profile'),
     path('api/', include(router.urls)),
-    path('', include(router.urls)),
+
     # Add any additional URL patterns as needed
 ]
