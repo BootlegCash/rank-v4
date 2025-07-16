@@ -17,6 +17,11 @@ from achievements.models import Achievement
 from .forms import RegistrationForm, StatsUpdateForm, SendFriendRequestForm, PostForm, DailyLogForm
 from .models import Profile, FriendRequest, Post, DailyLog, current_log_date
 
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.response import Response
+
 def register(request):
     if request.user.is_authenticated:
         return redirect('welcome')
@@ -469,6 +474,19 @@ def day_log_detail(request, year, month, day):
     return render(request, 'accounts/day_log_detail.html', {
         'log_date': log_date,
         'daily_log': daily_log,
+    })
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def profile_api(request):
+    profile = request.user.profile
+    return Response({
+        "username": profile.user.username,
+        "display_name": profile.display_name,
+        "xp": profile.xp,
+        "rank": profile.rank,
     })
 
 
