@@ -28,9 +28,5 @@ urlpatterns = [
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
-    # Add any additional URL patterns as needed
-]
-
-urlpatterns += [
     path('api/profile/', profile_api, name='profile_api'),
 ]
