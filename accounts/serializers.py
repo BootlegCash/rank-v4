@@ -1,5 +1,3 @@
-# accounts/serializers.py
-
 from rest_framework import serializers
 from .models import DailyLog
 
@@ -12,7 +10,8 @@ class DailyLogSerializer(serializers.ModelSerializer):
     tequila = serializers.IntegerField(required=False, default=0)
     shotguns = serializers.IntegerField(required=False, default=0)
     snorkels = serializers.IntegerField(required=False, default=0)
-    thrown_up = serializers.BooleanField(required=False, default=False)
+    # ✅ fix: match model type (PositiveIntegerField), not BooleanField
+    thrown_up = serializers.IntegerField(required=False, default=0)
     xp = serializers.IntegerField(read_only=True)
 
     class Meta:

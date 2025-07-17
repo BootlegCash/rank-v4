@@ -4,7 +4,7 @@ import requests
 BASE_URL = "https://ranked-0xtx.onrender.com"
 
 # 🔑 Replace this with the token you generated on Render
-TOKEN = "a7f3551f606dd5ca0ff0903ac0579fdddeb9d1a9"
+TOKEN = "e0cfde842ef11178bebe6adefb8d0a05f12aeb53"
 
 # ✅ Your API endpoint (make sure it exists in your urls.py)
 url = f"{BASE_URL}/accounts/api/profile/"

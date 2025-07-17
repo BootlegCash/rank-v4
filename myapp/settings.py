@@ -26,7 +26,7 @@ APPEND_SLASH = True
 SECRET_KEY = 'django-insecure-pk*b+9_&mjh@986gny-u!yuozy5xm7n$xz8mtvc-j!=27u&@$d'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['ranked-0xtxonrender.com',
 '127.0.0.1',
