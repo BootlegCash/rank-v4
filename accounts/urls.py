@@ -1,7 +1,6 @@
 from django.urls import path, include
 from . import views
-from .views import CreatePostView
-from .views import profile_api
+from .views import CreatePostView, profile_api
 
 urlpatterns = [
     path('register/', views.register, name='register'),
@@ -23,10 +22,13 @@ urlpatterns = [
     path('safety/', views.safety_guidelines, name='safety_guidelines'),
     path('achievements/', views.achievements, name='achievements'),
     path('about/', views.about, name='about'),
-     path('update_daily_log/', views.update_daily_log, name='update_daily_log'),
+    path('update_daily_log/', views.update_daily_log, name='update_daily_log'),
     path('daily_log_calendar/', views.daily_log_calendar, name='daily_log_calendar'),
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
+
+    # ✅ API endpoints
+    path('api/profile/', profile_api, name='profile_api'),
     path('api/', include('accounts.api_urls')),
 ]
