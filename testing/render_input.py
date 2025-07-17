@@ -4,7 +4,7 @@ import requests
 url = "https://ranked-0xtx.onrender.com/accounts/api/log_drink/"
 
 # 🔑 Your token from Render
-token = "a7f3551f606dd5ca0ff0903ac0579fdddeb9d1a9"
+token = "07aad56c90c2faaee46ebec4d4cd7ab3e69bf7f5"
 
 # ✅ Headers with Token Authentication
 headers = {
