@@ -13,3 +13,5 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', user_profile, name='api_profile'),
 ]
+
+urlpatterns += router.urls
