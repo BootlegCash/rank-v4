@@ -29,6 +29,4 @@ urlpatterns = [
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
 
     # ✅ API endpoints
-    path('api/profile/', profile_api, name='profile_api'),
-    path('api/', include('accounts.api_urls')),
 ]
