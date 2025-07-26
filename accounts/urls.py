@@ -1,6 +1,7 @@
 from django.urls import path, include
 from . import views
 from .views import CreatePostView, profile_api
+from . import api
 
 urlpatterns = [
     path('register/', views.register, name='register'),
@@ -27,6 +28,7 @@ urlpatterns = [
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
+    path('api/register/', api.register_api, name='register_api'),
 
     # ✅ API endpoints
 ]
