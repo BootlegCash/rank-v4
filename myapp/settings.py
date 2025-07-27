@@ -1,46 +1,64 @@
 import os
 from pathlib import Path
+from datetime import timedelta
+import dj_database_url
 
-# BASE DIR
+# ---------------------------
+# BASE SETTINGS
+# ---------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'your-secret-key'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = ['*']  # For Render; you can lock this down later
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # set to False in production
-
-ALLOWED_HOSTS = ['*']  # adjust for your domain or Render URL
-
-# Application definition
+# ---------------------------
+# INSTALLED APPS
+# ---------------------------
 INSTALLED_APPS = [
+    # Default Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'jazzmin',  # 👈 ensure jazzmin is installed
-    # your apps:
+
+    # Third-party apps
+    'rest_framework',
+    'corsheaders',
+    'rest_framework_simplejwt',
+    'jazzmin',  # ✅ jazzmin admin UI
+
+    # Your apps
     'accounts',
+    'achievements',  # ✅ FIX: include achievements app
 ]
 
+# ---------------------------
+# MIDDLEWARE
+# ---------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'myapp.urls'
 
+# ---------------------------
+# TEMPLATES
+# ---------------------------
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'],  # if you have templates folder
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -55,19 +73,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'myapp.wsgi.application'
 
-# Database
+# ---------------------------
+# DATABASE
+# ---------------------------
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # or sqlite3 locally
-        'NAME': os.environ.get('DB_NAME', 'postgres'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-    }
+    'default': dj_database_url.config(
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+        conn_max_age=600,
+    )
 }
 
-# Password validation
+# ---------------------------
+# PASSWORD VALIDATION
+# ---------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -83,35 +101,57 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
+# ---------------------------
+# INTERNATIONALIZATION
+# ---------------------------
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# ---------------------------
+# STATIC AND MEDIA FILES
+# ---------------------------
 STATIC_URL = '/static/'
-
-# 👉 THIS is what fixes your error
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-# Optional: extra static dirs (e.g., local `static` folder in project)
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
-
-# Media files (if you have uploads)
+STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
+# whitenoise settings for static file serving
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ---------------------------
+# DEFAULT PRIMARY KEY FIELD
+# ---------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Jazzmin (optional configs)
-JAZZMIN_SETTINGS = {
-    "site_title": "After Hours Admin",
-    "site_header": "After Hours Dashboard",
-    "welcome_sign": "Welcome to After Hours Admin",
-    "show_sidebar": True,
-    "navigation_expanded": True,
+# ---------------------------
+# DJANGO REST FRAMEWORK
+# ---------------------------
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
+
+# ---------------------------
+# SIMPLE JWT CONFIG
+# ---------------------------
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# ---------------------------
+# CORS
+# ---------------------------
+CORS_ALLOW_ALL_ORIGINS = True
