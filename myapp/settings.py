@@ -17,6 +17,7 @@ ALLOWED_HOSTS = [
 
 # ----------------- INSTALLED APPS -----------------
 INSTALLED_APPS = [
+    'jazzmin', 
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -27,7 +28,7 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'corsheaders',
-    'jazzmin',  # if you installed django-jazzmin
+     # if you installed django-jazzmin
     'rest_framework_simplejwt',
 
     # Your apps
