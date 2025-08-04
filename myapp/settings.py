@@ -27,6 +27,7 @@ INSTALLED_APPS = [
 
     # Third-party
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
      # if you installed django-jazzmin
     'rest_framework_simplejwt',
@@ -111,6 +112,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'Default_Authentication_Classes': [
+        'rest_framework.authenticatiion.TokenAuthentication',]
 }
 
 SIMPLE_JWT = {
