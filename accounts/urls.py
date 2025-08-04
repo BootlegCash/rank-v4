@@ -2,6 +2,20 @@ from django.urls import path, include
 from . import views
 from .views import CreatePostView, profile_api
 from . import api
+from rest_framework.routers import DefaultRouter
+from .api import (
+    user_profile,
+    DailyLogViewSet,
+    friend_list_api,
+    send_friend_request_api,
+    accept_friend_request_api,
+    reject_friend_request_api,
+    remove_friend_api,
+    search_users_api
+)
+
+router = DefaultRouter()
+router.register(r'api/log_drink', DailyLogViewSet, basename='log_drink')
 
 urlpatterns = [
     path('register/', views.register, name='register'),
@@ -30,5 +44,15 @@ urlpatterns = [
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
     path('api/register/', api.register_api, name='register_api'),
 
-    # ✅ API endpoints
+    # ✅ API Endpoints for Friends and Profile
+    path('api/profile/', user_profile, name='user_profile'),
+    path('api/friends/', friend_list_api, name='friend_list_api'),
+    path('api/friend/send/', send_friend_request_api, name='send_friend_request_api'),
+    path('api/friend/accept/', accept_friend_request_api, name='accept_friend_request_api'),
+    path('api/friend/reject/', reject_friend_request_api, name='reject_friend_request_api'),
+    path('api/friend/remove/', remove_friend_api, name='remove_friend_api'),
+    path('api/friend/search/', search_users_api, name='search_users_api'),
 ]
+
+# DRF router URLs (for daily drink logging)
+urlpatterns += router.urls
