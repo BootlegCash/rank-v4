@@ -1,8 +1,9 @@
 from django.urls import path, include
 from . import views
-from .views import CreatePostView, profile_api
+from .views import CreatePostView, profile_api, CreatePostView
 from . import api
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .api import (
     user_profile,
     DailyLogViewSet,
@@ -52,6 +53,9 @@ urlpatterns = [
     path('api/friend/reject/', reject_friend_request_api, name='reject_friend_request_api'),
     path('api/friend/remove/', remove_friend_api, name='remove_friend_api'),
     path('api/friend/search/', search_users_api, name='search_users_api'),
+
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),      # <-- add
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),     # <-- add
 ]
 
 # DRF router URLs (for daily drink logging)
