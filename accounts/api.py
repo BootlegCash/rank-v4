@@ -1,197 +1,175 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
+# accounts/api.py
 from django.contrib.auth.models import User
 from django.db import transaction
-from accounts.models import Profile, DailyLog, FriendRequest
-from .serializers import (
-    DailyLogSerializer,
-    ProfileSerializer,
-    FriendRequestSerializer
-)
-from datetime import date
+
+from rest_framework import serializers, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+
+from .models import Profile, FriendRequest
 
 
-def current_log_date():
-    return date.today()
+# ---------- Serializers ----------
+class ProfileMiniSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username")
+    display_name = serializers.SerializerMethodField()
+    xp_percentage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = [
+            "id", "username", "display_name",
+            "xp", "rank", "xp_percentage",
+            "beer", "floco", "rum", "whiskey", "vodka", "tequila",
+            "shotguns", "snorkels", "thrown_up",
+        ]
+
+    def get_display_name(self, obj):
+        # Optional field—use username if you don’t store display_name
+        return getattr(obj, "display_name", obj.user.username)
+
+    def get_xp_percentage(self, obj):
+        try:
+            return obj.xp_percentage  # property on your model
+        except Exception:
+            return 0
 
 
-@api_view(['GET'])
+class FriendRequestSerializer(serializers.ModelSerializer):
+    from_username = serializers.CharField(source="from_user.user.username", read_only=True)
+    to_username = serializers.CharField(source="to_user.user.username", read_only=True)
+
+    class Meta:
+        model = FriendRequest
+        fields = ["id", "from_username", "to_username", "accepted", "created_at"]
+
+
+# ---------- Helpers ----------
+def _me(request) -> Profile:
+    return request.user.profile
+
+
+# ---------- Authenticated profile probe ----------
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def user_profile(request):
-    profile = request.user.profile
+def me(request):
+    """Return current user’s profile summary (JWT required)."""
+    return Response(ProfileMiniSerializer(_me(request)).data)
+
+
+# ---------- Friends: lists ----------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def friends_list(request):
+    me = _me(request)
+    friends = me.friends.all().order_by("user__username")
+    return Response(ProfileMiniSerializer(friends, many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def requests_list(request):
+    me = _me(request)
+    received = FriendRequest.objects.filter(to_user=me, accepted=False).order_by("-created_at")
+    sent = FriendRequest.objects.filter(from_user=me, accepted=False).order_by("-created_at")
     return Response({
-        "username": request.user.username,
-        "email": request.user.email,
-        "xp": profile.xp,
-        "rank": profile.rank,
-        "beer": profile.beer,
-        "floco": profile.floco,
-        "rum": profile.rum,
-        "whiskey": profile.whiskey,
-        "vodka": profile.vodka,
-        "tequila": profile.tequila,
-        "shotguns": profile.shotguns,
-        "snorkels": profile.snorkels,
-        "thrown_up": profile.thrown_up,
-        "total_alcohol": profile.calculate_alcohol_drank(),
+        "received": FriendRequestSerializer(received, many=True).data,
+        "sent": FriendRequestSerializer(sent, many=True).data,
     })
 
 
-class DailyLogViewSet(viewsets.ModelViewSet):
-    serializer_class = DailyLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        today = current_log_date()
-        return DailyLog.objects.filter(profile=self.request.user.profile, date=today)
-
-    def perform_create(self, serializer):
-        profile = self.request.user.profile
-        today = current_log_date()
-        daily_log, created = DailyLog.objects.get_or_create(profile=profile, date=today)
-        data = serializer.validated_data
-
-        daily_log.beer += data.get('beer', 0)
-        daily_log.floco += data.get('floco', 0)
-        daily_log.rum += data.get('rum', 0)
-        daily_log.whiskey += data.get('whiskey', 0)
-        daily_log.vodka += data.get('vodka', 0)
-        daily_log.tequila += data.get('tequila', 0)
-        daily_log.shotguns += data.get('shotguns', 0)
-        daily_log.snorkels += data.get('snorkels', 0)
-        if data.get('thrown_up', False):
-            daily_log.thrown_up += 1
-
-        daily_log.xp = daily_log.calculate_xp()
-        daily_log.save()
-
-        profile.beer += data.get('beer', 0)
-        profile.floco += data.get('floco', 0)
-        profile.rum += data.get('rum', 0)
-        profile.whiskey += data.get('whiskey', 0)
-        profile.vodka += data.get('vodka', 0)
-        profile.tequila += data.get('tequila', 0)
-        profile.shotguns += data.get('shotguns', 0)
-        profile.snorkels += data.get('snorkels', 0)
-        if data.get('thrown_up', False):
-            profile.thrown_up += 1
-        profile.save()
+# ---------- Friends: search/send/accept/reject/remove ----------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_search(request):
+    """
+    ?q=partial  → up to 10 profiles (not you, not already friends).
+    """
+    q = (request.GET.get("q") or "").strip()
+    me = _me(request)
+    if not q:
+        return Response([], status=200)
+    qs = Profile.objects.filter(user__username__icontains=q).exclude(id=me.id)[:10]
+    # exclude already friends
+    qs = [p for p in qs if p not in me.friends.all()]
+    return Response(ProfileMiniSerializer(qs, many=True).data)
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 @transaction.atomic
-def register_api(request):
-    username = request.data.get('username', '').strip()
-    email = request.data.get('email', '').strip()
-    password1 = request.data.get('password1', '')
-    password2 = request.data.get('password2', '')
-    display_name = request.data.get('display_name', '').strip()
-
-    if not username or not email or not password1 or not password2:
-        return Response({'error': 'All fields are required.'}, status=400)
-    if password1 != password2:
-        return Response({'error': 'Passwords do not match.'}, status=400)
-    if User.objects.filter(username=username).exists():
-        return Response({'error': 'Username already exists.'}, status=400)
-    if User.objects.filter(email=email).exists():
-        return Response({'error': 'Email already exists.'}, status=400)
-
-    user = User.objects.create_user(username=username, email=email, password=password1)
-    profile = Profile.objects.get(user=user)
-    if display_name:
-        profile.display_name = display_name
-        profile.save()
-
-    return Response({
-        'success': True,
-        'username': username,
-        'email': email,
-        'display_name': profile.display_name
-    }, status=201)
-
-
-# --- FRIEND API ---
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def friend_list_api(request):
-    profile = request.user.profile
-    friends = profile.friends.all()
-    serializer = ProfileSerializer(friends, many=True, context={'request': request})
-    return Response(serializer.data)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def send_friend_request_api(request):
-    username = request.data.get('username')
+def send_request(request):
+    """
+    JSON: { "username": "target" }
+    """
+    me = _me(request)
+    username = (request.data.get("username") or "").strip()
     if not username:
-        return Response({'error': 'Username is required.'}, status=400)
-
+        return Response({"detail": "username is required"}, status=400)
     try:
-        to_user_profile = User.objects.get(username=username).profile
-        from_profile = request.user.profile
-        if to_user_profile == from_profile:
-            return Response({'error': 'You cannot send a request to yourself.'}, status=400)
-        if FriendRequest.objects.filter(from_user=from_profile, to_user=to_user_profile).exists():
-            return Response({'error': 'Friend request already sent.'}, status=400)
-        if to_user_profile in from_profile.friends.all():
-            return Response({'error': 'You are already friends.'}, status=400)
-
-        request_obj = FriendRequest.objects.create(from_user=from_profile, to_user=to_user_profile)
-        return Response(FriendRequestSerializer(request_obj).data, status=201)
+        to = User.objects.get(username=username).profile
     except User.DoesNotExist:
-        return Response({'error': 'User not found.'}, status=404)
+        return Response({"detail": "user not found"}, status=404)
+
+    if to == me:
+        return Response({"detail": "cannot send request to yourself"}, status=400)
+    if to in me.friends.all():
+        return Response({"detail": "already friends"}, status=409)
+    if FriendRequest.objects.filter(from_user=me, to_user=to, accepted=False).exists():
+        return Response({"detail": "request already sent"}, status=409)
+    if FriendRequest.objects.filter(from_user=to, to_user=me, accepted=False).exists():
+        return Response({"detail": "they already sent you a request"}, status=409)
+
+    fr = FriendRequest.objects.create(from_user=me, to_user=to)  # pending
+    return Response(FriendRequestSerializer(fr).data, status=201)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def accept_friend_request_api(request):
-    request_id = request.data.get('request_id')
+@transaction.atomic
+def accept_request(request, request_id: int):
+    me = _me(request)
+    fr = FriendRequest.objects.filter(id=request_id, to_user=me, accepted=False).first()
+    if not fr:
+        return Response({"detail": "request not found"}, status=404)
+    fr.accept()  # your model method makes friendship both ways
+    return Response({"detail": "friend request accepted"}, status=200)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def reject_request(request, request_id: int):
+    me = _me(request)
+    fr = FriendRequest.objects.filter(id=request_id, to_user=me, accepted=False).first()
+    if not fr:
+        return Response({"detail": "request not found"}, status=404)
+    fr.delete()
+    return Response({"detail": "friend request rejected"}, status=200)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def remove_friend(request):
+    """
+    JSON: { "username": "target" }
+    Removes friendship both directions.
+    """
+    me = _me(request)
+    username = (request.data.get("username") or "").strip()
+    if not username:
+        return Response({"detail": "username is required"}, status=400)
+
     try:
-        friend_request = FriendRequest.objects.get(id=request_id, to_user=request.user.profile)
-        friend_request.accept()
-        return Response({'success': True})
-    except FriendRequest.DoesNotExist:
-        return Response({'error': 'Friend request not found.'}, status=404)
+        other = User.objects.get(username=username).profile
+    except User.DoesNotExist:
+        return Response({"detail": "user not found"}, status=404)
 
+    if other not in me.friends.all():
+        return Response({"detail": "not friends"}, status=409)
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def reject_friend_request_api(request):
-    request_id = request.data.get('request_id')
-    try:
-        friend_request = FriendRequest.objects.get(id=request_id, to_user=request.user.profile)
-        friend_request.delete()
-        return Response({'success': True})
-    except FriendRequest.DoesNotExist:
-        return Response({'error': 'Friend request not found.'}, status=404)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def remove_friend_api(request):
-    profile_id = request.data.get('profile_id')
-    try:
-        friend_profile = Profile.objects.get(id=profile_id)
-        if friend_profile in request.user.profile.friends.all():
-            request.user.profile.friends.remove(friend_profile)
-            friend_profile.friends.remove(request.user.profile)
-            return Response({'success': True})
-        return Response({'error': 'Not friends.'}, status=400)
-    except Profile.DoesNotExist:
-        return Response({'error': 'Profile not found.'}, status=404)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def search_users_api(request):
-    query = request.GET.get('q', '').strip()
-    if query:
-        users = Profile.objects.filter(user__username__icontains=query).exclude(user=request.user)[:10]
-        serializer = ProfileSerializer(users, many=True, context={'request': request})
-        return Response(serializer.data)
-    return Response([], status=200)
+    me.friends.remove(other)
+    other.friends.remove(me)
+    return Response({"detail": "removed from friends"}, status=200)
