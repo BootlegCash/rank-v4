@@ -32,3 +32,8 @@ urlpatterns = [
     # 👇 Mount all API routes here (no direct imports)
     path('api/', include('accounts.api_urls')),
 ]
+
+# 👇 add this at the end
+urlpatterns += [
+    path('api/', include('accounts.api_urls')),
+]

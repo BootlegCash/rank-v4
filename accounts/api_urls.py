@@ -1,7 +1,6 @@
 # accounts/api_urls.py
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
 from . import api as v
 
 urlpatterns = [
@@ -10,7 +9,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Me
-    path('me/', v.me, name='api_me'),
+    path('profile/', v.me, name='api_me'),
 
     # Friends
     path('friends/', v.friends_list, name='api_friends_list'),

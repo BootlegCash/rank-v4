@@ -1,63 +1,31 @@
+# accounts/api.py
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 
-from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework import status
 
 from .models import Profile, FriendRequest
+from .serializers import ProfileMiniSerializer, FriendRequestSerializer
 
 
-# ---------- Serializers ----------
-class ProfileMiniSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="user.username")
-    display_name = serializers.SerializerMethodField()
-    xp_percentage = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Profile
-        fields = [
-            "id", "username", "display_name",
-            "xp", "rank", "xp_percentage",
-            "beer", "floco", "rum", "whiskey", "vodka", "tequila",
-            "shotguns", "snorkels", "thrown_up",
-        ]
-
-    def get_display_name(self, obj):
-        # Optional field—use username if you don’t store display_name
-        return getattr(obj, "display_name", obj.user.username)
-
-    def get_xp_percentage(self, obj):
-        try:
-            return obj.xp_percentage  # property on your model
-        except Exception:
-            return 0
-
-
-class FriendRequestSerializer(serializers.ModelSerializer):
-    from_username = serializers.CharField(source="from_user.user.username", read_only=True)
-    to_username = serializers.CharField(source="to_user.user.username", read_only=True)
-
-    class Meta:
-        model = FriendRequest
-        fields = ["id", "from_username", "to_username", "accepted", "created_at"]
-
-
-# ---------- Helpers ----------
+# -------- Helpers --------
 def _me(request) -> Profile:
     return request.user.profile
 
 
-# ---------- Authenticated profile probe ----------
+# -------- Me / Profile --------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """Return current user’s profile summary (JWT required)."""
+    """Return the current user’s profile details."""
     return Response(ProfileMiniSerializer(_me(request)).data)
 
 
-# ---------- Friends: lists ----------
+# -------- Friends: lists --------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def friends_list(request):
@@ -71,18 +39,19 @@ def friends_list(request):
 def requests_list(request):
     me = _me(request)
     received = FriendRequest.objects.filter(to_user=me, accepted=False).order_by("-created_at")
-    sent = FriendRequest.objects.filter(from_user=me, accepted=False).order_by("-created_at")
+    sent     = FriendRequest.objects.filter(from_user=me, accepted=False).order_by("-created_at")
     return Response({
         "received": FriendRequestSerializer(received, many=True).data,
-        "sent": FriendRequestSerializer(sent, many=True).data,
+        "sent":     FriendRequestSerializer(sent, many=True).data,
     })
 
 
-# ---------- Friends: search/send/accept/reject/remove ----------
+# -------- Friends: search / send / accept / reject / remove --------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_search(request):
     """
+    Search users by username.
     ?q=partial  → up to 10 profiles (not you, not already friends).
     """
     q = (request.GET.get("q") or "").strip()
@@ -90,7 +59,7 @@ def user_search(request):
     if not q:
         return Response([], status=200)
     qs = Profile.objects.filter(user__username__icontains=q).exclude(id=me.id)[:10]
-    # exclude already friends
+    # exclude already-friends
     qs = [p for p in qs if p not in me.friends.all()]
     return Response(ProfileMiniSerializer(qs, many=True).data)
 
@@ -99,13 +68,12 @@ def user_search(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def send_request(request):
-    """
-    JSON: { "username": "target" }
-    """
+    """JSON: { "username": "target" }"""
     me = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
         return Response({"detail": "username is required"}, status=400)
+
     try:
         to = User.objects.get(username=username).profile
     except User.DoesNotExist:
@@ -132,7 +100,7 @@ def accept_request(request, request_id: int):
     fr = FriendRequest.objects.filter(id=request_id, to_user=me, accepted=False).first()
     if not fr:
         return Response({"detail": "request not found"}, status=404)
-    fr.accept()  # your model method makes friendship both ways
+    fr.accept()  # establishes mutual friendship
     return Response({"detail": "friend request accepted"}, status=200)
 
 
@@ -152,15 +120,11 @@ def reject_request(request, request_id: int):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def remove_friend(request):
-    """
-    JSON: { "username": "target" }
-    Removes friendship both directions.
-    """
+    """JSON: { "username": "target" }  – removes both directions."""
     me = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
         return Response({"detail": "username is required"}, status=400)
-
     try:
         other = User.objects.get(username=username).profile
     except User.DoesNotExist:
