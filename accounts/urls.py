@@ -1,7 +1,22 @@
-# accounts/urls.py
 from django.urls import path, include
 from . import views
-from .views import CreatePostView
+from .views import CreatePostView, profile_api, CreatePostView
+from . import api
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .api import (
+    user_profile,
+    DailyLogViewSet,
+    friend_list_api,
+    send_friend_request_api,
+    accept_friend_request_api,
+    reject_friend_request_api,
+    remove_friend_api,
+    search_users_api
+)
+
+router = DefaultRouter()
+router.register(r'api/log_drink', DailyLogViewSet, basename='log_drink')
 
 urlpatterns = [
     path('register/', views.register, name='register'),
@@ -28,7 +43,20 @@ urlpatterns = [
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
-    
-    # 👇 Mount all API routes here (no direct imports)
-    path('api/', include('accounts.api_urls')),
+    path('api/register/', api.register_api, name='register_api'),
+
+    # ✅ API Endpoints for Friends and Profile
+    path('api/profile/', user_profile, name='user_profile'),
+    path('api/friends/', friend_list_api, name='friend_list_api'),
+    path('api/friend/send/', send_friend_request_api, name='send_friend_request_api'),
+    path('api/friend/accept/', accept_friend_request_api, name='accept_friend_request_api'),
+    path('api/friend/reject/', reject_friend_request_api, name='reject_friend_request_api'),
+    path('api/friend/remove/', remove_friend_api, name='remove_friend_api'),
+    path('api/friend/search/', search_users_api, name='search_users_api'),
+
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),      # <-- add
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),     # <-- add
 ]
+
+# DRF router URLs (for daily drink logging)
+urlpatterns += router.urls
