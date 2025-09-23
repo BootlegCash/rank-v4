@@ -3,7 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Profile, DailyLog, FriendRequest
 
-# ---- Mini helpers ----
+
+# ------------------ Mini helpers ------------------
 
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,7 +26,8 @@ class ProfileMiniSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---- Main profile (internal / admin-ish) ----
+# ------------------ Main profile (admin/internal) ------------------
+
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserMiniSerializer(read_only=True)
 
@@ -49,18 +51,15 @@ class ProfileSerializer(serializers.ModelSerializer):
             "thrown_up",
             "total_drinks",
         ]
-        read_only_fields = [
-            "xp",
-            "rank",
-            "total_drinks",
-        ]
+        read_only_fields = ["xp", "rank", "total_drinks"]
 
 
-# ---- Public/mobile profile payload ----
+# ------------------ Public/mobile profile core shape ------------------
+
 class ProfilePublicSerializer(serializers.Serializer):
     """
-    What Flutter consumes. We keep this decoupled from the DB model so the app’s
-    response stays stable even if models change.
+    Stable shape the mobile app can rely on.
+    Extra counters can be added by the API function after validating this core.
     """
     username = serializers.CharField()
     email = serializers.CharField(allow_blank=True)
@@ -71,9 +70,9 @@ class ProfilePublicSerializer(serializers.Serializer):
     next_rank_xp = serializers.IntegerField()
 
 
-# ---- Daily logs ----
+# ------------------ Daily logs ------------------
+
 class DailyLogSerializer(serializers.ModelSerializer):
-    # Make all drink counts optional with default 0 so partial posts don't explode
     beer = serializers.IntegerField(required=False, default=0, min_value=0)
     floco = serializers.IntegerField(required=False, default=0, min_value=0)
     rum = serializers.IntegerField(required=False, default=0, min_value=0)
@@ -106,60 +105,75 @@ class DailyLogSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         for k, v in attrs.items():
             if k in {
-                "beer",
-                "floco",
-                "rum",
-                "whiskey",
-                "vodka",
-                "tequila",
-                "shotguns",
-                "snorkels",
-                "thrown_up",
+                "beer", "floco", "rum", "whiskey", "vodka", "tequila",
+                "shotguns", "snorkels", "thrown_up",
             } and v is not None and v < 0:
                 raise serializers.ValidationError({k: "Must be >= 0"})
         return attrs
 
 
-# ---- Friend requests ----
+# ------------------ Friends ------------------
+
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = ProfileMiniSerializer(read_only=True)
     to_user = ProfileMiniSerializer(read_only=True)
 
     class Meta:
         model = FriendRequest
-        fields = [
-            "id",
-            "from_user",
-            "to_user",
-            "status",
-            "created_at",
-        ]
+        fields = ["id", "from_user", "to_user", "status", "created_at"]
         read_only_fields = ["id", "from_user", "to_user", "created_at"]
 
 
-# ---- Log drink request/response (mobile endpoint) ----
+# ------------------ Mobile: log-drink request/response ------------------
+
 class LogDrinkRequestSerializer(serializers.Serializer):
-    drink_name = serializers.CharField()
-    abv_percent = serializers.FloatField(min_value=0.01)
-    volume_oz = serializers.FloatField(min_value=0.1)
-    count = serializers.IntegerField(min_value=1, default=1)
-    shotguns = serializers.IntegerField(min_value=0, default=0)
-    snorkels = serializers.IntegerField(min_value=0, default=0)
-    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    """
+    Accepts EITHER:
+      A) Detailed: drink_name + abv_percent + volume_oz [+ count]
+      B) Shortcut: category in {beer, floco, rum, whiskey, vodka, tequila} [+ count]
+    """
+    # Option A (detailed)
+    drink_name  = serializers.CharField(required=False, allow_blank=True)
+    abv_percent = serializers.FloatField(required=False, min_value=0.01)
+    volume_oz   = serializers.FloatField(required=False, min_value=0.1)
+
+    # Option B (shortcut)
+    category = serializers.ChoiceField(
+        choices=["beer", "floco", "rum", "whiskey", "vodka", "tequila"],
+        required=False
+    )
+
+    count    = serializers.IntegerField(required=False, default=1, min_value=1)
+    shotguns = serializers.IntegerField(required=False, default=0, min_value=0)
+    snorkels = serializers.IntegerField(required=False, default=0, min_value=0)
+    notes    = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, data):
+        have_category = bool(data.get("category"))
+        have_detail = all(k in data and data[k] not in (None, "")
+                          for k in ("drink_name", "abv_percent", "volume_oz"))
+        if not (have_category or have_detail):
+            raise serializers.ValidationError(
+                "Provide either {category, count} OR "
+                "{drink_name, abv_percent, volume_oz[, count]}."
+            )
+        return data
+
 
 class LogDrinkComputedSerializer(serializers.Serializer):
     std_drinks_per_item = serializers.FloatField()
     total_std_drinks = serializers.FloatField()
 
+
 class LogDrinkResponseSerializer(serializers.Serializer):
     ok = serializers.BooleanField()
     message = serializers.CharField()
-    drink_name = serializers.CharField()
-    abv_percent = serializers.FloatField()
-    volume_oz = serializers.FloatField()
+    drink_name = serializers.CharField(allow_blank=True)
+    abv_percent = serializers.FloatField(required=False)
+    volume_oz = serializers.FloatField(required=False)
+    category = serializers.CharField(required=False)
     count = serializers.IntegerField()
     shotguns = serializers.IntegerField()
     snorkels = serializers.IntegerField()
     notes = serializers.CharField(allow_blank=True)
     computed = LogDrinkComputedSerializer()
-    # log_id = serializers.IntegerField(required=False)

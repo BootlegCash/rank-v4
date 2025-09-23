@@ -14,35 +14,40 @@ from .models import Profile, FriendRequest, DailyLog
 from .serializers import (
     ProfileMiniSerializer,
     FriendRequestSerializer,
-    ProfilePublicSerializer,       # still fine to keep; we’ll add extra fields ad-hoc
+    ProfilePublicSerializer,
     LogDrinkRequestSerializer,
     LogDrinkResponseSerializer,
 )
 
-# -------- Helpers --------
+
+# ------------------ Helpers ------------------
+
 def _me(request) -> Profile:
     return request.user.profile
 
 def _abs(request, relurl: str) -> str:
+    """Turn a relative /static/... or /media/... URL into an absolute URL."""
     return request.build_absolute_uri(relurl)
 
 def _static_abs(request, relpath: str) -> str:
     return _abs(request, static(relpath))
 
 
-# -------- Me / Profile --------
+# ------------------ Me / Profile ------------------
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
     """
     GET /accounts/api/profile/
 
-    Returns stable mobile payload:
-      - username, email, display_name, rank, xp, next_rank_xp
-      - avatar_url (ABSOLUTE, with static fallback)
-      - drink counters: beer/floco/rum/whiskey/vodka/tequila
-      - extras: total_drinks, shotguns, snorkels, thrown_up
-      - plural aliases (beers, flocos, rums, whiskeys, vodkas, tequilas) for UI safety
+    Returns:
+      - username, email, display_name
+      - rank, xp, next_rank_xp
+      - avatar_url (absolute; static fallback)
+      - drink counters: beer, floco, rum, whiskey, vodka, tequila
+      - aliases (beers, flocos, rums, whiskeys, vodkas, tequilas)
+      - total_drinks, shotguns, snorkels, thrown_up
     """
     user = request.user
     profile = getattr(user, "profile", None)
@@ -71,7 +76,7 @@ def me(request):
     xp = int(getattr(profile, "xp", 0) or 0)
     next_rank_xp = int(getattr(profile, "next_rank_xp", 1181) or 1181)
 
-    # Per-drink counters (default 0 if missing)
+    # Counters
     beer     = int(getattr(profile, "beer", 0) or 0)
     floco    = int(getattr(profile, "floco", 0) or 0)
     rum      = int(getattr(profile, "rum", 0) or 0)
@@ -84,7 +89,8 @@ def me(request):
     snorkels     = int(getattr(profile, "snorkels", 0) or 0)
     thrown_up    = int(getattr(profile, "thrown_up", 0) or 0)
 
-    payload = {
+    # Build payload with a stable core + extras
+    core = ProfilePublicSerializer({
         "username": user.username,
         "email": user.email or "",
         "display_name": display_name,
@@ -92,47 +98,29 @@ def me(request):
         "rank": rank_name,
         "xp": xp,
         "next_rank_xp": next_rank_xp,
+    }).data
 
-        # drink counters (singular keys)
-        "beer": beer,
-        "floco": floco,
-        "rum": rum,
-        "whiskey": whiskey,
-        "vodka": vodka,
-        "tequila": tequila,
-
-        # aliases (plural) in case Flutter uses these
-        "beers": beer,
-        "flocos": floco,
-        "rums": rum,
-        "whiskeys": whiskey,
-        "vodkas": vodka,
-        "tequilas": tequila,
-
-        # extras for badges / tiles
+    extras = {
+        "beer": beer, "floco": floco, "rum": rum, "whiskey": whiskey, "vodka": vodka, "tequila": tequila,
+        "beers": beer, "flocos": floco, "rums": rum, "whiskeys": whiskey, "vodkas": vodka, "tequilas": tequila,
         "total_drinks": total_drinks,
         "shotguns": shotguns,
         "snorkels": snorkels,
         "thrown_up": thrown_up,
     }
-
-    # We keep using ProfilePublicSerializer for core fields; the extra keys remain in payload.
-    base = ProfilePublicSerializer({
-        k: payload[k] for k in [
-            "username","email","display_name","avatar_url","rank","xp","next_rank_xp"
-        ]
-    }).data
-    base.update({k: v for k, v in payload.items() if k not in base})
-    return Response(base, status=status.HTTP_200_OK)
+    core.update(extras)
+    return Response(core, status=status.HTTP_200_OK)
 
 
-# -------- Friends: lists --------
+# ------------------ Friends: lists ------------------
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def friends_list(request):
     me_profile = _me(request)
     friends = me_profile.friends.all().order_by("user__username")
     return Response(ProfileMiniSerializer(friends, many=True).data)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -146,7 +134,8 @@ def requests_list(request):
     })
 
 
-# -------- Friends: search / send / accept / reject / remove --------
+# ------------------ Friends: search / send / accept / reject / remove ------------------
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_search(request):
@@ -157,6 +146,7 @@ def user_search(request):
     qs = Profile.objects.filter(user__username__icontains=q).exclude(id=me_profile.id)[:10]
     qs = [p for p in qs if p not in me_profile.friends.all()]
     return Response(ProfileMiniSerializer(qs, many=True).data)
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -170,6 +160,7 @@ def send_request(request):
         to = User.objects.get(username=username).profile
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
+
     if to == me_profile:
         return Response({"detail": "cannot send request to yourself"}, status=400)
     if to in me_profile.friends.all():
@@ -178,8 +169,10 @@ def send_request(request):
         return Response({"detail": "request already sent"}, status=409)
     if FriendRequest.objects.filter(from_user=to, to_user=me_profile, accepted=False).exists():
         return Response({"detail": "they already sent you a request"}, status=409)
+
     fr = FriendRequest.objects.create(from_user=me_profile, to_user=to)
     return Response(FriendRequestSerializer(fr).data, status=201)
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -192,6 +185,7 @@ def accept_request(request, request_id: int):
     fr.accept()
     return Response({"detail": "friend request accepted"}, status=200)
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @transaction.atomic
@@ -202,6 +196,7 @@ def reject_request(request, request_id: int):
         return Response({"detail": "request not found"}, status=404)
     fr.delete()
     return Response({"detail": "friend request rejected"}, status=200)
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -215,38 +210,63 @@ def remove_friend(request):
         other = User.objects.get(username=username).profile
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
+
     if other not in me_profile.friends.all():
         return Response({"detail": "not friends"}, status=409)
+
     me_profile.friends.remove(other)
     other.friends.remove(me_profile)
     return Response({"detail": "removed from friends"}, status=200)
 
 
-# -------- Drinks: log_drink --------
+# ------------------ Drinks: log_drink ------------------
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def log_drink(request):
     """
     POST /accounts/api/log_drink/
-    Body: LogDrinkRequestSerializer
-    Returns 201 with computed standard drinks and (optionally) updates DailyLog/Profile.
+
+    Accepts either:
+      - Detailed: {"drink_name": "...", "abv_percent": 5.0, "volume_oz": 12, "count": 1, ...}
+      - Shortcut: {"category": "beer", "count": 1, ...}
+
+    Returns computed standard drinks, and (if models permit) increments today's DailyLog and Profile counters.
     """
     ser = LogDrinkRequestSerializer(data=request.data)
     if not ser.is_valid():
         return Response({"detail": ser.errors}, status=status.HTTP_400_BAD_REQUEST)
     data = ser.validated_data
 
-    drink_name = data["drink_name"].strip()
-    abv = float(data["abv_percent"])
-    volume_oz = float(data["volume_oz"])
-    count = int(data.get("count", 1))
+    count    = int(data.get("count", 1))
     shotguns = int(data.get("shotguns", 0))
     snorkels = int(data.get("snorkels", 0))
-    notes = data.get("notes", "").strip()
+    notes    = (data.get("notes") or "").strip()
 
-    std_per = (abv / 100.0) * (volume_oz * 29.5735) / 14.0
+    # Defaults used for category shortcut
+    category_defaults = {
+        "beer":    (5.0, 12.0),
+        "floco":   (6.0, 12.0),
+        "rum":     (40.0, 1.5),
+        "whiskey": (40.0, 1.5),
+        "vodka":   (40.0, 1.5),
+        "tequila": (40.0, 1.5),
+    }
+
+    category = data.get("category")
+    if category:
+        drink_name  = category.capitalize()
+        abv_percent, volume_oz = category_defaults[category]
+    else:
+        drink_name  = (data.get("drink_name") or "").strip()
+        abv_percent = float(data["abv_percent"])
+        volume_oz   = float(data["volume_oz"])
+
+    # Compute standard drinks (NIAAA-ish)
+    std_per  = (abv_percent / 100.0) * (volume_oz * 29.5735) / 14.0
     total_std = std_per * count
 
+    # Persist counters if models exist
     try:
         profile: Profile = request.user.profile  # type: ignore
     except Exception:
@@ -256,17 +276,10 @@ def log_drink(request):
         if profile is not None:
             today = _date.today()
             daily, _ = DailyLog.objects.get_or_create(profile=profile, date=today)
-            drink_map = {
-                "beer": "beer",
-                "floco": "floco",
-                "rum": "rum",
-                "whiskey": "whiskey",
-                "vodka": "vodka",
-                "tequila": "tequila",
-            }
-            key = drink_map.get(drink_name.lower())
-            if key and hasattr(daily, key):
-                setattr(daily, key, (getattr(daily, key) or 0) + count)
+
+            if category and hasattr(daily, category):
+                setattr(daily, category, (getattr(daily, category) or 0) + count)
+
             if hasattr(daily, "shotguns"):
                 daily.shotguns = (daily.shotguns or 0) + shotguns
             if hasattr(daily, "snorkels"):
@@ -283,15 +296,16 @@ def log_drink(request):
                 profile.xp = (profile.xp or 0) + int(round(total_std * 10))
             profile.save()
     except Exception:
-        # Don’t fail the call if persistence hiccups
+        # Don't fail the call if persistence hiccups
         pass
 
     resp = {
         "ok": True,
         "message": "Drink logged.",
         "drink_name": drink_name,
-        "abv_percent": abv,
+        "abv_percent": abv_percent,
         "volume_oz": volume_oz,
+        "category": category or "",
         "count": count,
         "shotguns": shotguns,
         "snorkels": snorkels,
