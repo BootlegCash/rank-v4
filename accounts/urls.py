@@ -4,6 +4,7 @@ from . import views
 from .views import CreatePostView
 
 urlpatterns = [
+    # HTML/session pages
     path('register/', views.register, name='register'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
@@ -28,12 +29,7 @@ urlpatterns = [
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
-    
-    # 👇 Mount all API routes here (no direct imports)
-    path('api/', include('accounts.api_urls')),
-]
 
-# 👇 add this at the end
-urlpatterns += [
+    # API namespace for mobile
     path('api/', include('accounts.api_urls')),
 ]

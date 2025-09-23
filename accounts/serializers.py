@@ -8,7 +8,7 @@ from .models import Profile, DailyLog, FriendRequest
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username"]
+        fields = ["id", "username", "email"]
 
 
 class ProfileMiniSerializer(serializers.ModelSerializer):
@@ -25,8 +25,7 @@ class ProfileMiniSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---- Main profile ----
-
+# ---- Main profile (internal / admin-ish) ----
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserMiniSerializer(read_only=True)
 
@@ -39,7 +38,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "bio",
             "xp",
             "rank",
-            # per-drink aggregates kept on Profile (if your model has them)
             "beer",
             "floco",
             "rum",
@@ -58,8 +56,22 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---- Daily logs ----
+# ---- Public/mobile profile payload ----
+class ProfilePublicSerializer(serializers.Serializer):
+    """
+    What Flutter consumes. We keep this decoupled from the DB model so the app’s
+    response stays stable even if models change.
+    """
+    username = serializers.CharField()
+    email = serializers.CharField(allow_blank=True)
+    display_name = serializers.CharField()
+    avatar_url = serializers.URLField()
+    rank = serializers.CharField()
+    xp = serializers.IntegerField()
+    next_rank_xp = serializers.IntegerField()
 
+
+# ---- Daily logs ----
 class DailyLogSerializer(serializers.ModelSerializer):
     # Make all drink counts optional with default 0 so partial posts don't explode
     beer = serializers.IntegerField(required=False, default=0, min_value=0)
@@ -92,7 +104,6 @@ class DailyLogSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        # Additional guard just in case
         for k, v in attrs.items():
             if k in {
                 "beer",
@@ -108,20 +119,8 @@ class DailyLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({k: "Must be >= 0"})
         return attrs
 
-    def create(self, validated_data):
-        """
-        Let your model/business logic compute xp and update Profile totals
-        in model save() or a post_save signal. If you already do that, cool —
-        this just passes data through.
-        """
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        return super().update(instance, validated_data)
-
 
 # ---- Friend requests ----
-
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = ProfileMiniSerializer(read_only=True)
     to_user = ProfileMiniSerializer(read_only=True)
@@ -136,3 +135,31 @@ class FriendRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "from_user", "to_user", "created_at"]
+
+
+# ---- Log drink request/response (mobile endpoint) ----
+class LogDrinkRequestSerializer(serializers.Serializer):
+    drink_name = serializers.CharField()
+    abv_percent = serializers.FloatField(min_value=0.01)
+    volume_oz = serializers.FloatField(min_value=0.1)
+    count = serializers.IntegerField(min_value=1, default=1)
+    shotguns = serializers.IntegerField(min_value=0, default=0)
+    snorkels = serializers.IntegerField(min_value=0, default=0)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+class LogDrinkComputedSerializer(serializers.Serializer):
+    std_drinks_per_item = serializers.FloatField()
+    total_std_drinks = serializers.FloatField()
+
+class LogDrinkResponseSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    message = serializers.CharField()
+    drink_name = serializers.CharField()
+    abv_percent = serializers.FloatField()
+    volume_oz = serializers.FloatField()
+    count = serializers.IntegerField()
+    shotguns = serializers.IntegerField()
+    snorkels = serializers.IntegerField()
+    notes = serializers.CharField(allow_blank=True)
+    computed = LogDrinkComputedSerializer()
+    # log_id = serializers.IntegerField(required=False)
