@@ -3,47 +3,89 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Profile, DailyLog, FriendRequest
 
-
-# ===== Mini helpers =====
+# ---- Mini helpers ----
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
+        fields = ["id", "username"]
 
 
 class ProfileMiniSerializer(serializers.ModelSerializer):
     user = UserMiniSerializer(read_only=True)
-    class Meta:
-        model = Profile
-        fields = ["id", "user", "display_name", "rank", "xp"]
 
-
-# ===== Main profile (admin/internal) =====
-class ProfileSerializer(serializers.ModelSerializer):
-    user = UserMiniSerializer(read_only=True)
     class Meta:
         model = Profile
         fields = [
-            "id","user","display_name","bio","xp","rank",
-            "beer","floco","rum","whiskey","vodka","tequila",
-            "shotguns","snorkels","thrown_up","total_drinks",
+            "id",
+            "user",
+            "display_name",
+            "rank",
+            "xp",
         ]
-        read_only_fields = ["xp","rank","total_drinks"]
 
 
-# ===== Public/mobile profile core =====
-class ProfilePublicSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    email = serializers.CharField(allow_blank=True)
-    display_name = serializers.CharField()
-    avatar_url = serializers.URLField()
-    rank = serializers.CharField()
-    xp = serializers.IntegerField()
-    next_rank_xp = serializers.IntegerField()
+# ---- Main profile ----
+class ProfileSerializer(serializers.ModelSerializer):
+    user = UserMiniSerializer(read_only=True)
+    total_drinks = serializers.SerializerMethodField()
+    total_alcohol_ml = serializers.SerializerMethodField()
+    xp_percentage = serializers.SerializerMethodField()
+    xp_to_next_level = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = [
+            "id",
+            "user",
+            "display_name",
+            "xp",
+            "rank",
+            "beer",
+            "floco",
+            "rum",
+            "whiskey",
+            "vodka",
+            "tequila",
+            "shotguns",
+            "snorkels",
+            "thrown_up",
+            "total_drinks",
+            "total_alcohol_ml",
+            "xp_percentage",
+            "xp_to_next_level",
+        ]
+        read_only_fields = [
+            "xp",
+            "rank",
+            "total_drinks",
+            "total_alcohol_ml",
+            "xp_percentage",
+            "xp_to_next_level",
+        ]
+
+    def get_total_drinks(self, obj: Profile) -> int:
+        return (
+            obj.beer + obj.floco + obj.rum +
+            obj.whiskey + obj.vodka + obj.tequila
+        )
+
+    def get_total_alcohol_ml(self, obj: Profile) -> int:
+        return obj.calculate_alcohol_drank()
+
+    def get_xp_percentage(self, obj: Profile) -> int:
+        # model already exposes a property; mirror here so API is stable
+        try:
+            return int(obj.xp_percentage)
+        except Exception:
+            return 0
+
+    def get_xp_to_next_level(self, obj: Profile):
+        return obj.xp_to_next_level
 
 
-# ===== Daily logs =====
+# ---- Daily logs ----
 class DailyLogSerializer(serializers.ModelSerializer):
+    # allow partial payloads; default missing values to 0
     beer = serializers.IntegerField(required=False, default=0, min_value=0)
     floco = serializers.IntegerField(required=False, default=0, min_value=0)
     rum = serializers.IntegerField(required=False, default=0, min_value=0)
@@ -53,92 +95,48 @@ class DailyLogSerializer(serializers.ModelSerializer):
     shotguns = serializers.IntegerField(required=False, default=0, min_value=0)
     snorkels = serializers.IntegerField(required=False, default=0, min_value=0)
     thrown_up = serializers.IntegerField(required=False, default=0, min_value=0)
+
     xp = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DailyLog
         fields = [
-            "id","date","beer","floco","rum","whiskey","vodka","tequila",
-            "shotguns","snorkels","thrown_up","xp",
+            "id",
+            "date",
+            "beer",
+            "floco",
+            "rum",
+            "whiskey",
+            "vodka",
+            "tequila",
+            "shotguns",
+            "snorkels",
+            "thrown_up",
+            "xp",
         ]
 
     def validate(self, attrs):
         for k, v in attrs.items():
-            if k in {"beer","floco","rum","whiskey","vodka","tequila","shotguns","snorkels","thrown_up"} and v is not None and v < 0:
+            if k in {
+                "beer", "floco", "rum", "whiskey", "vodka",
+                "tequila", "shotguns", "snorkels", "thrown_up",
+            } and v is not None and v < 0:
                 raise serializers.ValidationError({k: "Must be >= 0"})
         return attrs
 
 
-# ===== Friends =====
+# ---- Friend requests ----
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = ProfileMiniSerializer(read_only=True)
     to_user = ProfileMiniSerializer(read_only=True)
+
     class Meta:
         model = FriendRequest
-        fields = ["id","from_user","to_user","status","created_at"]
-        read_only_fields = ["id","from_user","to_user","created_at"]
-
-
-# ===== Mobile: log-drink request/response =====
-class LogDrinkRequestSerializer(serializers.Serializer):
-    """
-    Accepts ANY of the following:
-      A) Detailed:  drink_name + abv_percent + volume_oz [+ count]
-      B) Category:  category in {beer, floco, rum, whiskey, vodka, tequila} [+ count]
-      C) Raw:       one or more counters directly, e.g. {"beer": 1, "shotguns": 1}
-    """
-    # A) Detailed
-    drink_name  = serializers.CharField(required=False, allow_blank=True)
-    abv_percent = serializers.FloatField(required=False, min_value=0.01)
-    volume_oz   = serializers.FloatField(required=False, min_value=0.1)
-
-    # B) Category
-    category = serializers.ChoiceField(choices=["beer","floco","rum","whiskey","vodka","tequila"], required=False)
-
-    # C) Raw counters
-    beer     = serializers.IntegerField(required=False, min_value=0)
-    floco    = serializers.IntegerField(required=False, min_value=0)
-    rum      = serializers.IntegerField(required=False, min_value=0)
-    whiskey  = serializers.IntegerField(required=False, min_value=0)
-    vodka    = serializers.IntegerField(required=False, min_value=0)
-    tequila  = serializers.IntegerField(required=False, min_value=0)
-
-    # Common extras
-    count    = serializers.IntegerField(required=False, default=1, min_value=1)
-    shotguns = serializers.IntegerField(required=False, default=0, min_value=0)
-    snorkels = serializers.IntegerField(required=False, default=0, min_value=0)
-    notes    = serializers.CharField(required=False, allow_blank=True, default="")
-
-    def validate(self, data):
-        have_detail = all(k in data and data[k] not in (None, "")
-                          for k in ("drink_name", "abv_percent", "volume_oz"))
-        have_category = bool(data.get("category"))
-        have_raw = any(k in data for k in ("beer","floco","rum","whiskey","vodka","tequila"))
-
-        if not (have_detail or have_category or have_raw):
-            raise serializers.ValidationError(
-                "Send one of: "
-                "A) {drink_name, abv_percent, volume_oz[, count]} "
-                "B) {category[, count]} "
-                "C) {beer|floco|rum|whiskey|vodka|tequila[, shotguns|snorkels]}"
-            )
-        return data
-
-
-class LogDrinkComputedSerializer(serializers.Serializer):
-    std_drinks_per_item = serializers.FloatField()
-    total_std_drinks = serializers.FloatField()
-
-
-class LogDrinkResponseSerializer(serializers.Serializer):
-    ok = serializers.BooleanField()
-    message = serializers.CharField()
-    drink_name = serializers.CharField(allow_blank=True)
-    abv_percent = serializers.FloatField(required=False)
-    volume_oz = serializers.FloatField(required=False)
-    category = serializers.CharField(required=False)
-    count = serializers.IntegerField()
-    shotguns = serializers.IntegerField()
-    snorkels = serializers.IntegerField()
-    notes = serializers.CharField(allow_blank=True)
-    computed = LogDrinkComputedSerializer()
+        fields = [
+            "id",
+            "from_user",
+            "to_user",
+            "accepted",
+            "created_at",
+        ]
+        read_only_fields = ["id", "from_user", "to_user", "accepted", "created_at"]
