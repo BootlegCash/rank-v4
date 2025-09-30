@@ -226,14 +226,8 @@ def log_drink(request):
 def register(request):
     """
     POST /accounts/api/register/
-    Body JSON:
-    {
-      "username": "poppy",
-      "password": "secret123",
-      "email": "poppy@example.com",          // optional
-      "display_name": "Poppy"                // optional
-    }
-    Returns: { "user": <mini profile>, "access": "...", "refresh": "..." }
+    Accepts password aliases (password, pass, pwd, password1) and confirmation
+    aliases (confirm_password, password2, confirmPassword).
     """
     ser = RegisterSerializer(data=request.data)
     if not ser.is_valid():
@@ -241,30 +235,33 @@ def register(request):
     data = ser.validated_data
 
     username = data["username"].strip()
-    password = data["password"]
+    password = data["password"]             # unified by serializer
     email = (data.get("email") or "").strip()
     display_name = (data.get("display_name") or "").strip() or username
 
-    # Create user
+    # Create user & profile
     user = User.objects.create_user(username=username, password=password, email=email)
-
-    # Ensure Profile exists (if you already have a signal this still is safe)
     profile = getattr(user, "profile", None)
     if profile is None:
         profile = Profile.objects.create(user=user, display_name=display_name)
-    else:
-        if not getattr(profile, "display_name", ""):
-            profile.display_name = display_name
-            profile.save()
+    elif not getattr(profile, "display_name", ""):
+        profile.display_name = display_name
+        profile.save()
 
-    # Issue JWT tokens so the app is logged in immediately
+    # JWT pair so the app is logged in
     token_ser = TokenObtainPairSerializer(data={"username": username, "password": password})
     token_ser.is_valid(raise_exception=True)
-    tokens = token_ser.validated_data  # {"refresh": "...", "access": "..."}
+    tokens = token_ser.validated_data
 
     return Response(
         {
-            "user": ProfileMiniSerializer(profile).data,
+            "user": {
+                "id": profile.id,
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+                "display_name": profile.display_name,
+                "rank": getattr(profile, "rank", "Bronze"),
+                "xp": int(getattr(profile, "xp", 0) or 0),
+            },
             "access": tokens.get("access"),
             "refresh": tokens.get("refresh"),
         },

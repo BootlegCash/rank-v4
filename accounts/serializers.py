@@ -143,9 +143,13 @@ class FriendRequestSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(min_length=3, max_length=150)
-    password = serializers.CharField(write_only=True, min_length=6, max_length=128)
+    # keep DRF happy but we'll fill this from aliases if missing
+    password = serializers.CharField(write_only=True, min_length=6, max_length=128, required=False)
     email = serializers.EmailField(required=False, allow_blank=True)
     display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+
+    # optional confirmation field (we’ll also look for aliases)
+    confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     def validate_username(self, value):
         if User.objects.filter(username__iexact=value).exists():
@@ -156,3 +160,31 @@ class RegisterSerializer(serializers.Serializer):
         if value and User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("This email is already in use.")
         return value
+
+    def validate(self, attrs):
+        # Pull password from any alias the client might send
+        data = {**getattr(self, "initial_data", {}), **attrs}
+        pw = (
+            data.get("password")
+            or data.get("pass")
+            or data.get("pwd")
+            or data.get("password1")
+        )
+        cpw = (
+            data.get("confirm_password")
+            or data.get("password2")
+            or data.get("confirmPassword")
+        )
+
+        if not pw:
+            raise serializers.ValidationError({"password": "This field is required."})
+        if len(pw) < 6:
+            raise serializers.ValidationError({"password": "Must be at least 6 characters."})
+        # If a confirmation was provided, make sure it matches
+        if cpw is not None and cpw != "" and pw != cpw:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+
+        # Write back unified fields so the view can read them
+        attrs["password"] = pw
+        attrs["confirm_password"] = cpw or ""
+        return attrs
