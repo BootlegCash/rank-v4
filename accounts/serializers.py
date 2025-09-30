@@ -140,3 +140,19 @@ class FriendRequestSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "from_user", "to_user", "accepted", "created_at"]
+
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(min_length=3, max_length=150)
+    password = serializers.CharField(write_only=True, min_length=6, max_length=128)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("This email is already in use.")
+        return value

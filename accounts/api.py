@@ -9,7 +9,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from .serializers import RegisterSerializer  # <-- add this
 from .models import Profile, FriendRequest, DailyLog, current_log_date
 from .serializers import (
     ProfileMiniSerializer,
@@ -215,4 +217,56 @@ def log_drink(request):
             "detail": "Logged successfully.",
         },
         status=201,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@transaction.atomic
+def register(request):
+    """
+    POST /accounts/api/register/
+    Body JSON:
+    {
+      "username": "poppy",
+      "password": "secret123",
+      "email": "poppy@example.com",          // optional
+      "display_name": "Poppy"                // optional
+    }
+    Returns: { "user": <mini profile>, "access": "...", "refresh": "..." }
+    """
+    ser = RegisterSerializer(data=request.data)
+    if not ser.is_valid():
+        return Response({"detail": ser.errors}, status=status.HTTP_400_BAD_REQUEST)
+    data = ser.validated_data
+
+    username = data["username"].strip()
+    password = data["password"]
+    email = (data.get("email") or "").strip()
+    display_name = (data.get("display_name") or "").strip() or username
+
+    # Create user
+    user = User.objects.create_user(username=username, password=password, email=email)
+
+    # Ensure Profile exists (if you already have a signal this still is safe)
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        profile = Profile.objects.create(user=user, display_name=display_name)
+    else:
+        if not getattr(profile, "display_name", ""):
+            profile.display_name = display_name
+            profile.save()
+
+    # Issue JWT tokens so the app is logged in immediately
+    token_ser = TokenObtainPairSerializer(data={"username": username, "password": password})
+    token_ser.is_valid(raise_exception=True)
+    tokens = token_ser.validated_data  # {"refresh": "...", "access": "..."}
+
+    return Response(
+        {
+            "user": ProfileMiniSerializer(profile).data,
+            "access": tokens.get("access"),
+            "refresh": tokens.get("refresh"),
+        },
+        status=status.HTTP_201_CREATED,
     )

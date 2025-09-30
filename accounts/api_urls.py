@@ -19,7 +19,10 @@ urlpatterns = [
     path("friends/request/<int:request_id>/accept/", v.accept_request, name="api_accept_request"),
     path("friends/request/<int:request_id>/reject/", v.reject_request, name="api_reject_request"),
     path("friends/remove/", v.remove_friend, name="api_remove_friend"),
+    path('register/', v.register, name='api_register'),
 
     # Log drink (NEW)
     path("log_drink/", v.log_drink, name="api_log_drink"),
+    
+
 ]
