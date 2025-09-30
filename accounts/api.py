@@ -13,12 +13,15 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .serializers import RegisterSerializer  # <-- add this
 from .models import Profile, FriendRequest, DailyLog, current_log_date
+from django.templatetags.static import static
 from .serializers import (
     ProfileMiniSerializer,
     ProfileSerializer,
     FriendRequestSerializer,
     DailyLogSerializer,
 )
+
+
 
 # -------- Helpers --------
 def _me(request) -> Profile:
@@ -34,12 +37,77 @@ def _safe_int(val, default=0):
         return default
 
 
-# -------- Me / Profile --------
+def _abs(request, relurl: str) -> str:
+    return request.build_absolute_uri(relurl)
+
+def _static_abs(request, relpath: str) -> str:
+    return _abs(request, static(relpath))
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    """Return the current user’s full profile details."""
-    return Response(ProfileSerializer(_me(request)).data)
+    user = request.user
+    profile = user.profile
+
+    # Display name: prefer profile.display_name, fallback to first_name, then username
+    display_name = (getattr(profile, "display_name", "") or "").strip() \
+                   or (getattr(user, "first_name", "") or "").strip() \
+                   or user.username
+
+    # Avatar (fallback to static placeholder)
+    avatar_url = None
+    if getattr(profile, "avatar", None):
+        try:
+            avatar_url = _abs(request, profile.avatar.url)
+        except Exception:
+            pass
+    if not avatar_url:
+        avatar_url = _static_abs(request, "img/avatar_placeholder.png")
+
+    # Counters
+    beer     = int(getattr(profile, "beer", 0) or 0)
+    floco    = int(getattr(profile, "floco", 0) or 0)
+    rum      = int(getattr(profile, "rum", 0) or 0)
+    whiskey  = int(getattr(profile, "whiskey", 0) or 0)
+    vodka    = int(getattr(profile, "vodka", 0) or 0)
+    tequila  = int(getattr(profile, "tequila", 0) or 0)
+    computed_total = beer + floco + rum + whiskey + vodka + tequila
+
+    shotguns  = int(getattr(profile, "shotguns", 0) or 0)
+    snorkels  = int(getattr(profile, "snorkels", 0) or 0)
+    thrown_up = int(getattr(profile, "thrown_up", 0) or 0)
+
+    # Rank/XP
+    rank_name    = getattr(profile, "rank", "Bronze")
+    xp           = int(getattr(profile, "xp", 0) or 0)
+    next_rank_xp = int(getattr(profile, "next_rank_xp", 600) or 600)
+
+    resp = {
+        "username": user.username,
+        "email": user.email or "",
+        "display_name": display_name,
+        "avatar_url": avatar_url,
+        "rank": rank_name,
+        "xp": xp,
+        "next_rank_xp": next_rank_xp,
+
+        "beer": beer, "floco": floco, "rum": rum,
+        "whiskey": whiskey, "vodka": vodka, "tequila": tequila,
+
+        # plural aliases some UIs use
+        "beers": beer, "flocos": floco, "rums": rum,
+        "whiskeys": whiskey, "vodkas": vodka, "tequilas": tequila,
+
+        # totals + aliases
+        "total_drinks": computed_total,
+        "total": computed_total,
+        "totalDrinks": computed_total,
+
+        "shotguns": shotguns,
+        "snorkels": snorkels,
+        "thrown_up": thrown_up,
+    }
+    return Response(resp, status=status.HTTP_200_OK)
 
 
 # -------- Friends: lists --------
