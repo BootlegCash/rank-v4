@@ -12,13 +12,14 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .serializers import RegisterSerializer  # <-- add this
-from .models import Profile, FriendRequest, DailyLog, current_log_date
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post
 from django.templatetags.static import static
 from .serializers import (
     ProfileMiniSerializer,
     ProfileSerializer,
     FriendRequestSerializer,
     DailyLogSerializer,
+    PostSerializer,
 )
 
 
@@ -471,3 +472,71 @@ def leaderboard(request):
         })
 
     return Response(data)
+
+# -------- Feed: list / create / like --------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def feed(request):
+    """
+    Return posts from me + my friends, newest first.
+    """
+    me = request.user.profile
+
+    # me + friends
+    friend_ids = list(me.friends.values_list("id", flat=True))
+    profile_ids = friend_ids + [me.id]
+
+    qs = (
+        Post.objects.filter(user_id__in=profile_ids)
+        .select_related("user__user")
+        .prefetch_related("likes")
+        .order_by("-created_at")[:50]
+    )
+
+    serializer = PostSerializer(qs, many=True, context={"request": request})
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_post(request):
+    """
+    JSON: { "content": "text here" }
+    """
+    content = (request.data.get("content") or "").strip()
+    if not content:
+        return Response({"detail": "content is required"}, status=400)
+
+    me = request.user.profile
+    post = Post.objects.create(user=me, content=content)
+
+    serializer = PostSerializer(post, context={"request": request})
+    return Response(serializer.data, status=201)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def like_post_api(request, post_id: int):
+    """
+    Toggle like on a post. Returns updated like status/count.
+    """
+    me = request.user.profile
+    post = get_object_or_404(Post, id=post_id)
+
+    if post.likes.filter(id=me.id).exists():
+        post.likes.remove(me)
+        liked = False
+    else:
+        post.likes.add(me)
+        liked = True
+
+    return Response(
+        {
+            "id": post.id,
+            "liked": liked,
+            "like_count": post.likes.count(),
+        },
+        status=200,
+    )

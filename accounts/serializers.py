@@ -1,7 +1,7 @@
 # accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, DailyLog, FriendRequest
+from .models import Profile, DailyLog, FriendRequest, Post
 
 # ---- Mini helpers ----
 class UserMiniSerializer(serializers.ModelSerializer):
@@ -186,3 +186,31 @@ class RegisterSerializer(serializers.Serializer):
         attrs["password"] = pw
         attrs["confirm_password"] = cpw or ""
         return attrs
+class PostSerializer(serializers.ModelSerializer):
+    user = ProfileMiniSerializer(read_only=True)
+    like_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Post
+        fields = [
+            "id",
+            "user",         # ProfileMiniSerializer
+            "content",
+            "created_at",
+            "like_count",
+            "is_liked",
+        ]
+
+    def get_like_count(self, obj):
+        return obj.likes.count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get("request")
+        if not request or not hasattr(request, "user") or not request.user.is_authenticated:
+            return False
+        try:
+            profile = request.user.profile
+        except Profile.DoesNotExist:
+            return False
+        return obj.likes.filter(id=profile.id).exists()

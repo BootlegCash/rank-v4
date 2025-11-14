@@ -26,6 +26,10 @@ urlpatterns = [
 
 
     path('leaderboard/', v.leaderboard, name='api_leaderboard'),
+
+    path('feed/', v.feed, name='api_feed'),
+    path('feed/create/', v.create_post, name='api_create_post'),
+    path('posts/<int:post_id>/like/', v.like_post_api, name='api_like_post'),
     
 
 ]
