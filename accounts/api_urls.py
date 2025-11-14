@@ -23,6 +23,9 @@ urlpatterns = [
 
     # Log drink (NEW)
     path("log_drink/", v.log_drink, name="api_log_drink"),
+
+
+    path('leaderboard/', v.leaderboard, name='api_leaderboard'),
     
 
 ]

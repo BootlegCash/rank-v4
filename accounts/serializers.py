@@ -129,17 +129,15 @@ class DailyLogSerializer(serializers.ModelSerializer):
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = ProfileMiniSerializer(read_only=True)
     to_user = ProfileMiniSerializer(read_only=True)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = FriendRequest
-        fields = [
-            "id",
-            "from_user",
-            "to_user",
-            "accepted",
-            "created_at",
-        ]
-        read_only_fields = ["id", "from_user", "to_user", "accepted", "created_at"]
+        fields = ["id", "from_user", "to_user", "status", "accepted", "created_at"]
+        read_only_fields = fields
+
+    def get_status(self, obj):
+        return "accepted" if getattr(obj, "accepted", False) else "pending"
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(min_length=3, max_length=150)

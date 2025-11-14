@@ -335,3 +335,139 @@ def register(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def cancel_request(request):
+    """POST { "username": "<their-username>" }"""
+    me = request.user.profile
+    username = (request.data.get("username") or "").strip()
+    if not username:
+        return Response({"detail": "username is required"}, status=400)
+
+    try:
+        to = User.objects.get(username=username).profile
+    except User.DoesNotExist:
+        return Response({"detail": "user not found"}, status=404)
+
+    fr = FriendRequest.objects.filter(from_user=me, to_user=to, accepted=False).first()
+    if not fr:
+        return Response({"detail": "no pending request to cancel"}, status=404)
+    fr.delete()
+    return Response({"detail": "request cancelled"}, status=200)
+
+
+# --- FRIEND PUBLIC PROFILE (by username) ---
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def friend_profile_api(request, username: str):
+    """
+    GET /accounts/api/friends/<username>/
+    Returns the same shape as /accounts/api/profile/ but for a target user.
+    """
+    from django.templatetags.static import static
+
+    def _abs(req, relurl: str) -> str:
+        return req.build_absolute_uri(relurl)
+    def _static_abs(req, relpath: str) -> str:
+        return _abs(req, static(relpath))
+
+    try:
+        target_user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({"detail": "user not found"}, status=404)
+    p = target_user.profile
+
+    # compute fields similarly to your `me()` endpoint
+    display_name = (getattr(p, "display_name", "") or "").strip() or target_user.username
+    avatar_url = None
+    if getattr(p, "avatar", None):
+        try:
+            avatar_url = _abs(request, p.avatar.url)
+        except Exception:
+            pass
+    if not avatar_url:
+        avatar_url = _static_abs(request, "img/avatar_placeholder.png")
+
+    beer     = int(getattr(p, "beer", 0) or 0)
+    floco    = int(getattr(p, "floco", 0) or 0)
+    rum      = int(getattr(p, "rum", 0) or 0)
+    whiskey  = int(getattr(p, "whiskey", 0) or 0)
+    vodka    = int(getattr(p, "vodka", 0) or 0)
+    tequila  = int(getattr(p, "tequila", 0) or 0)
+    total    = beer + floco + rum + whiskey + vodka + tequila
+
+    shotguns = int(getattr(p, "shotguns", 0) or 0)
+    snorkels = int(getattr(p, "snorkels", 0) or 0)
+    thrown   = int(getattr(p, "thrown_up", 0) or 0)
+
+    rank_name    = getattr(p, "rank", "Bronze")
+    xp           = int(getattr(p, "xp", 0) or 0)
+    next_rank_xp = int(getattr(p, "next_rank_xp", 600) or 600)
+
+    # are we friends?
+    me = request.user.profile
+    are_friends = p in me.friends.all()
+
+    return Response({
+        "username": target_user.username,
+        "email": target_user.email or "",
+        "display_name": display_name,
+        "avatar_url": avatar_url,
+        "rank": rank_name,
+        "xp": xp,
+        "next_rank_xp": next_rank_xp,
+        "beer": beer, "floco": floco, "rum": rum,
+        "whiskey": whiskey, "vodka": vodka, "tequila": tequila,
+        "total_drinks": total,
+        "shotguns": shotguns, "snorkels": snorkels, "thrown_up": thrown,
+        "are_friends": are_friends,
+    }, status=200)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def leaderboard(request):
+    """
+    Return a simple friends+me leaderboard, sorted by XP (desc).
+    Shape:
+    [
+      {
+        "position": 1,
+        "is_me": true/false,
+        "id": 3,
+        "username": "poppy",
+        "display_name": "poppy",
+        "rank": "Bronze",
+        "xp": 239
+      },
+      ...
+    ]
+    """
+    me = request.user.profile
+
+    # me + friends, no duplicates
+    profiles = list(me.friends.all()) + [me]
+    seen_ids = set()
+    unique_profiles = []
+    for p in profiles:
+        if p.id not in seen_ids:
+            seen_ids.add(p.id)
+            unique_profiles.append(p)
+
+    # sort by XP desc, then username asc
+    unique_profiles.sort(key=lambda p: (-p.xp, p.user.username.lower()))
+
+    data = []
+    for idx, p in enumerate(unique_profiles, start=1):
+        data.append({
+            "position": idx,
+            "is_me": (p.id == me.id),
+            "id": p.id,
+            "username": p.user.username,
+            "display_name": p.display_name or p.user.username,
+            "rank": p.rank,
+            "xp": p.xp,
+        })
+
+    return Response(data)
