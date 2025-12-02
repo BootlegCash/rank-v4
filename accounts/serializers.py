@@ -139,53 +139,58 @@ class FriendRequestSerializer(serializers.ModelSerializer):
     def get_status(self, obj):
         return "accepted" if getattr(obj, "accepted", False) else "pending"
 
+# accounts/serializers.py
+from django.contrib.auth.models import User
+from rest_framework import serializers
+from .models import Profile
+
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(min_length=3, max_length=150)
-    # keep DRF happy but we'll fill this from aliases if missing
-    password = serializers.CharField(write_only=True, min_length=6, max_length=128, required=False)
-    email = serializers.EmailField(required=False, allow_blank=True)
-    display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
-
-    # optional confirmation field (we’ll also look for aliases)
-    confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-
-    def validate_username(self, value):
-        if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("This username is already taken.")
-        return value
-
-    def validate_email(self, value):
-        if value and User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("This email is already in use.")
-        return value
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password1 = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True)
+    display_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=150
+    )
 
     def validate(self, attrs):
-        # Pull password from any alias the client might send
-        data = {**getattr(self, "initial_data", {}), **attrs}
-        pw = (
-            data.get("password")
-            or data.get("pass")
-            or data.get("pwd")
-            or data.get("password1")
-        )
-        cpw = (
-            data.get("confirm_password")
-            or data.get("password2")
-            or data.get("confirmPassword")
-        )
-
-        if not pw:
-            raise serializers.ValidationError({"password": "This field is required."})
-        if len(pw) < 6:
-            raise serializers.ValidationError({"password": "Must be at least 6 characters."})
-        # If a confirmation was provided, make sure it matches
-        if cpw is not None and cpw != "" and pw != cpw:
-            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
-
-        # Write back unified fields so the view can read them
-        attrs["password"] = pw
-        attrs["confirm_password"] = cpw or ""
+        if attrs['password1'] != attrs['password2']:
+            raise serializers.ValidationError({"password2": "Passwords do not match."})
+        if User.objects.filter(username=attrs['username']).exists():
+            raise serializers.ValidationError({"username": "Username already taken."})
+        if User.objects.filter(email=attrs['email']).exists():
+            raise serializers.ValidationError({"email": "Email already in use."})
         return attrs
+
+    def create(self, validated_data):
+        # pull values
+        username = validated_data['username']
+        email = validated_data['email']
+        password = validated_data['password1']
+
+        # 🔥 IMPORTANT: default display_name if missing/blank
+        display_name = validated_data.get('display_name')
+        if not display_name:
+            display_name = username
+
+        # create user
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+
+        # create profile with proper display_name
+        profile = Profile.objects.create(
+            user=user,
+            display_name=display_name,
+        )
+
+        return profile
+
+
 class PostSerializer(serializers.ModelSerializer):
     user = ProfileMiniSerializer(read_only=True)
     like_count = serializers.SerializerMethodField()

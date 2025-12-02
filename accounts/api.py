@@ -309,18 +309,27 @@ def register(request):
     display_name = (data.get("display_name") or "").strip() or username
 
     # Create user & profile
-    user = User.objects.create_user(username=username, password=password, email=email)
+
+    user = User.objects.create_user(
+    username=username,
+    password=password,
+    email=email,
+    )
+
     profile = getattr(user, "profile", None)
+
+    # Treat missing / blank / placeholder "User" as empty
+    def is_placeholder_name(name: str | None) -> bool:
+        if not name:
+            return True
+        name = name.strip()
+        return not name or name.lower() == "user"
+
     if profile is None:
         profile = Profile.objects.create(user=user, display_name=display_name)
-    elif not getattr(profile, "display_name", ""):
+    elif is_placeholder_name(getattr(profile, "display_name", None)):
         profile.display_name = display_name
         profile.save()
-
-    # JWT pair so the app is logged in
-    token_ser = TokenObtainPairSerializer(data={"username": username, "password": password})
-    token_ser.is_valid(raise_exception=True)
-    tokens = token_ser.validated_data
 
     return Response(
         {
