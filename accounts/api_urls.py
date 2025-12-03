@@ -2,7 +2,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import api as v
-from . import api
+
 
 urlpatterns = [
     # Auth (JWT)
@@ -34,8 +34,8 @@ urlpatterns = [
     
      # 🔥 FRIEND PUBLIC PROFILE (THIS IS WHAT FEED/FRIENDS CLICK USE)
     path(
-        "api/friends/<str:username>/",
-        api.friend_profile_api,
+        "friends/<str:username>/",
+        v.friend_profile_api,
         name="friend-profile-api",
     ),
 
