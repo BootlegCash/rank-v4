@@ -6,12 +6,13 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .serializers import RegisterSerializer  # <-- add this
+
+from .serializers import RegisterSerializer
 from .models import Profile, FriendRequest, DailyLog, current_log_date, Post
 from django.templatetags.static import static
 from .serializers import (
@@ -21,8 +22,6 @@ from .serializers import (
     DailyLogSerializer,
     PostSerializer,
 )
-
-
 
 # -------- Helpers --------
 def _me(request) -> Profile:
@@ -41,8 +40,10 @@ def _safe_int(val, default=0):
 def _abs(request, relurl: str) -> str:
     return request.build_absolute_uri(relurl)
 
+
 def _static_abs(request, relpath: str) -> str:
     return _abs(request, static(relpath))
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -115,17 +116,17 @@ def me(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def friends_list(request):
-    me = _me(request)
-    friends = me.friends.all().order_by("user__username")
+    mep = _me(request)
+    friends = mep.friends.all().order_by("user__username")
     return Response(ProfileMiniSerializer(friends, many=True).data)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def requests_list(request):
-    me = _me(request)
-    received = FriendRequest.objects.filter(to_user=me, accepted=False).order_by("-created_at")
-    sent     = FriendRequest.objects.filter(from_user=me, accepted=False).order_by("-created_at")
+    mep = _me(request)
+    received = FriendRequest.objects.filter(to_user=mep, accepted=False).order_by("-created_at")
+    sent     = FriendRequest.objects.filter(from_user=mep, accepted=False).order_by("-created_at")
     return Response({
         "received": FriendRequestSerializer(received, many=True).data,
         "sent":     FriendRequestSerializer(sent, many=True).data,
@@ -141,12 +142,12 @@ def user_search(request):
     ?q=partial  → up to 10 profiles (not you, not already friends).
     """
     q = (request.GET.get("q") or "").strip()
-    me = _me(request)
+    mep = _me(request)
     if not q:
         return Response([], status=200)
-    qs = Profile.objects.filter(user__username__icontains=q).exclude(id=me.id)[:10]
-    # exclude already-friends
-    qs = [p for p in qs if p not in me.friends.all()]
+
+    qs = Profile.objects.filter(user__username__icontains=q).exclude(id=mep.id)[:10]
+    qs = [p for p in qs if p not in mep.friends.all()]
     return Response(ProfileMiniSerializer(qs, many=True).data)
 
 
@@ -155,7 +156,7 @@ def user_search(request):
 @transaction.atomic
 def send_request(request):
     """JSON: { "username": "target" }"""
-    me = _me(request)
+    mep = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
         return Response({"detail": "username is required"}, status=400)
@@ -165,16 +166,16 @@ def send_request(request):
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
 
-    if to == me:
+    if to == mep:
         return Response({"detail": "cannot send request to yourself"}, status=400)
-    if to in me.friends.all():
+    if to in mep.friends.all():
         return Response({"detail": "already friends"}, status=409)
-    if FriendRequest.objects.filter(from_user=me, to_user=to, accepted=False).exists():
+    if FriendRequest.objects.filter(from_user=mep, to_user=to, accepted=False).exists():
         return Response({"detail": "request already sent"}, status=409)
-    if FriendRequest.objects.filter(from_user=to, to_user=me, accepted=False).exists():
+    if FriendRequest.objects.filter(from_user=to, to_user=mep, accepted=False).exists():
         return Response({"detail": "they already sent you a request"}, status=409)
 
-    fr = FriendRequest.objects.create(from_user=me, to_user=to)  # pending
+    fr = FriendRequest.objects.create(from_user=mep, to_user=to)
     return Response(FriendRequestSerializer(fr).data, status=201)
 
 
@@ -182,11 +183,11 @@ def send_request(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def accept_request(request, request_id: int):
-    me = _me(request)
-    fr = FriendRequest.objects.filter(id=request_id, to_user=me, accepted=False).first()
+    mep = _me(request)
+    fr = FriendRequest.objects.filter(id=request_id, to_user=mep, accepted=False).first()
     if not fr:
         return Response({"detail": "request not found"}, status=404)
-    fr.accept()  # establishes mutual friendship
+    fr.accept()
     return Response({"detail": "friend request accepted"}, status=200)
 
 
@@ -194,8 +195,8 @@ def accept_request(request, request_id: int):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def reject_request(request, request_id: int):
-    me = _me(request)
-    fr = FriendRequest.objects.filter(id=request_id, to_user=me, accepted=False).first()
+    mep = _me(request)
+    fr = FriendRequest.objects.filter(id=request_id, to_user=mep, accepted=False).first()
     if not fr:
         return Response({"detail": "request not found"}, status=404)
     fr.delete()
@@ -207,7 +208,7 @@ def reject_request(request, request_id: int):
 @transaction.atomic
 def remove_friend(request):
     """JSON: { "username": "target" }  – removes both directions."""
-    me = _me(request)
+    mep = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
         return Response({"detail": "username is required"}, status=400)
@@ -216,11 +217,11 @@ def remove_friend(request):
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
 
-    if other not in me.friends.all():
+    if other not in mep.friends.all():
         return Response({"detail": "not friends"}, status=409)
 
-    me.friends.remove(other)
-    other.friends.remove(me)
+    mep.friends.remove(other)
+    other.friends.remove(mep)
     return Response({"detail": "removed from friends"}, status=200)
 
 
@@ -231,17 +232,9 @@ def remove_friend(request):
 def log_drink(request):
     """
     Upserts to today's DailyLog AND rolls increments into Profile totals.
-
-    Accepts partial payload, all fields optional:
-    {
-      "date": "YYYY-MM-DD" (optional; defaults to current_log_date()),
-      "beer": 1, "floco": 0, "rum": 0, "whiskey": 0, "vodka": 0, "tequila": 0,
-      "shotguns": 0, "snorkels": 0, "thrown_up": 0
-    }
     """
-    me = _me(request)
+    mep = _me(request)
 
-    # Determine log date
     raw_date = (request.data.get("date") or "").strip()
     if raw_date:
         try:
@@ -251,37 +244,33 @@ def log_drink(request):
     else:
         log_date = current_log_date()
 
-    # Extract increments (default 0)
     fields = [
         "beer", "floco", "rum", "whiskey", "vodka", "tequila",
         "shotguns", "snorkels", "thrown_up",
     ]
     inc = {f: _safe_int(request.data.get(f), 0) for f in fields}
-    # Short-circuit if nothing to change
+
     if not any(inc.values()):
         return Response({"detail": "No changes supplied."}, status=400)
 
-    # Guard negative values
     for k, v in inc.items():
         if v < 0:
             return Response({k: "Must be >= 0"}, status=400)
 
-    # Get/create the daily log, add increments
-    daily_log, _ = DailyLog.objects.get_or_create(profile=me, date=log_date)
+    daily_log, _ = DailyLog.objects.get_or_create(profile=mep, date=log_date)
     for f, add in inc.items():
         setattr(daily_log, f, getattr(daily_log, f, 0) + add)
     daily_log.xp = daily_log.calculate_xp()
     daily_log.save()
 
-    # ALSO roll into the lifetime Profile totals
     for f, add in inc.items():
-        if hasattr(me, f):
-            setattr(me, f, getattr(me, f, 0) + add)
-    me.save()  # triggers XP & rank recompute in Profile.save()
+        if hasattr(mep, f):
+            setattr(mep, f, getattr(mep, f, 0) + add)
+    mep.save()
 
     return Response(
         {
-            "profile": ProfileSerializer(me).data,
+            "profile": ProfileSerializer(mep).data,
             "daily_log": DailyLogSerializer(daily_log).data,
             "detail": "Logged successfully.",
         },
@@ -289,47 +278,84 @@ def log_drink(request):
     )
 
 
+# ✅ FIXED REGISTER
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @transaction.atomic
 def register(request):
     """
     POST /accounts/api/register/
-    Accepts password aliases (password, pass, pwd, password1) and confirmation
-    aliases (confirm_password, password2, confirmPassword).
+
+    Accepts password aliases:
+      password, pass, pwd, password1
+    Confirmation aliases:
+      password2, confirm_password, confirmPassword
     """
     ser = RegisterSerializer(data=request.data)
     if not ser.is_valid():
         return Response({"detail": ser.errors}, status=status.HTTP_400_BAD_REQUEST)
+
     data = ser.validated_data
 
-    username = data["username"].strip()
-    password = data["password"]             # unified by serializer
+    username = (data.get("username") or "").strip()
+    if not username:
+        return Response({"detail": {"username": ["Username is required."]}}, status=400)
+
+    # ✅ pull password from multiple possible keys (validated_data OR raw request)
+    password = (
+        data.get("password")
+        or data.get("password1")
+        or data.get("pass")
+        or data.get("pwd")
+        or request.data.get("password")
+        or request.data.get("password1")
+        or request.data.get("pass")
+        or request.data.get("pwd")
+    )
+
+    password2 = (
+        data.get("password2")
+        or data.get("confirm_password")
+        or data.get("confirmPassword")
+        or request.data.get("password2")
+        or request.data.get("confirm_password")
+        or request.data.get("confirmPassword")
+    )
+
+    if not password:
+        return Response({"detail": {"password": ["Password is required."]}}, status=400)
+
+    if password2 is not None and str(password2) != str(password):
+        return Response({"detail": {"password2": ["Passwords do not match."]}}, status=400)
+
     email = (data.get("email") or "").strip()
     display_name = (data.get("display_name") or "").strip() or username
 
-    # Create user & profile
-
+    # Create user
     user = User.objects.create_user(
-    username=username,
-    password=password,
-    email=email,
+        username=username,
+        password=password,
+        email=email,
     )
 
     profile = getattr(user, "profile", None)
 
-    # Treat missing / blank / placeholder "User" as empty
-    def is_placeholder_name(name: str | None) -> bool:
+    def is_placeholder_name(name):
         if not name:
             return True
-        name = name.strip()
-        return not name or name.lower() == "user"
+        name = str(name).strip()
+        return (not name) or name.lower() == "user"
 
     if profile is None:
         profile = Profile.objects.create(user=user, display_name=display_name)
     elif is_placeholder_name(getattr(profile, "display_name", None)):
         profile.display_name = display_name
         profile.save()
+
+    # ✅ mint JWT tokens right here
+    token_ser = TokenObtainPairSerializer(data={"username": username, "password": password})
+    token_ser.is_valid(raise_exception=True)
+    tokens = token_ser.validated_data
 
     return Response(
         {
@@ -346,12 +372,13 @@ def register(request):
         status=status.HTTP_201_CREATED,
     )
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def cancel_request(request):
     """POST { "username": "<their-username>" }"""
-    me = request.user.profile
+    mep = request.user.profile
     username = (request.data.get("username") or "").strip()
     if not username:
         return Response({"detail": "username is required"}, status=400)
@@ -361,7 +388,7 @@ def cancel_request(request):
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
 
-    fr = FriendRequest.objects.filter(from_user=me, to_user=to, accepted=False).first()
+    fr = FriendRequest.objects.filter(from_user=mep, to_user=to, accepted=False).first()
     if not fr:
         return Response({"detail": "no pending request to cancel"}, status=404)
     fr.delete()
@@ -376,10 +403,9 @@ def friend_profile_api(request, username: str):
     GET /accounts/api/friends/<username>/
     Returns the same shape as /accounts/api/profile/ but for a target user.
     """
-    from django.templatetags.static import static
-
     def _abs(req, relurl: str) -> str:
         return req.build_absolute_uri(relurl)
+
     def _static_abs(req, relpath: str) -> str:
         return _abs(req, static(relpath))
 
@@ -387,10 +413,11 @@ def friend_profile_api(request, username: str):
         target_user = User.objects.get(username=username)
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
+
     p = target_user.profile
 
-    # compute fields similarly to your `me()` endpoint
     display_name = (getattr(p, "display_name", "") or "").strip() or target_user.username
+
     avatar_url = None
     if getattr(p, "avatar", None):
         try:
@@ -416,9 +443,8 @@ def friend_profile_api(request, username: str):
     xp           = int(getattr(p, "xp", 0) or 0)
     next_rank_xp = int(getattr(p, "next_rank_xp", 600) or 600)
 
-    # are we friends?
-    me = request.user.profile
-    are_friends = p in me.friends.all()
+    mep = request.user.profile
+    are_friends = p in mep.friends.all()
 
     return Response({
         "username": target_user.username,
@@ -435,29 +461,13 @@ def friend_profile_api(request, username: str):
         "are_friends": are_friends,
     }, status=200)
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def leaderboard(request):
-    """
-    Return a simple friends+me leaderboard, sorted by XP (desc).
-    Shape:
-    [
-      {
-        "position": 1,
-        "is_me": true/false,
-        "id": 3,
-        "username": "poppy",
-        "display_name": "poppy",
-        "rank": "Bronze",
-        "xp": 239
-      },
-      ...
-    ]
-    """
-    me = request.user.profile
+    mep = request.user.profile
 
-    # me + friends, no duplicates
-    profiles = list(me.friends.all()) + [me]
+    profiles = list(mep.friends.all()) + [mep]
     seen_ids = set()
     unique_profiles = []
     for p in profiles:
@@ -465,14 +475,13 @@ def leaderboard(request):
             seen_ids.add(p.id)
             unique_profiles.append(p)
 
-    # sort by XP desc, then username asc
     unique_profiles.sort(key=lambda p: (-p.xp, p.user.username.lower()))
 
     data = []
     for idx, p in enumerate(unique_profiles, start=1):
         data.append({
             "position": idx,
-            "is_me": (p.id == me.id),
+            "is_me": (p.id == mep.id),
             "id": p.id,
             "username": p.user.username,
             "display_name": p.display_name or p.user.username,
@@ -482,19 +491,15 @@ def leaderboard(request):
 
     return Response(data)
 
-# -------- Feed: list / create / like --------
 
+# -------- Feed: list / create / like --------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def feed(request):
-    """
-    Return posts from me + my friends, newest first.
-    """
-    me = request.user.profile
+    mep = request.user.profile
 
-    # me + friends
-    friend_ids = list(me.friends.values_list("id", flat=True))
-    profile_ids = friend_ids + [me.id]
+    friend_ids = list(mep.friends.values_list("id", flat=True))
+    profile_ids = friend_ids + [mep.id]
 
     qs = (
         Post.objects.filter(user_id__in=profile_ids)
@@ -510,15 +515,12 @@ def feed(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_post(request):
-    """
-    JSON: { "content": "text here" }
-    """
     content = (request.data.get("content") or "").strip()
     if not content:
         return Response({"detail": "content is required"}, status=400)
 
-    me = request.user.profile
-    post = Post.objects.create(user=me, content=content)
+    mep = request.user.profile
+    post = Post.objects.create(user=mep, content=content)
 
     serializer = PostSerializer(post, context={"request": request})
     return Response(serializer.data, status=201)
@@ -528,17 +530,14 @@ def create_post(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def like_post_api(request, post_id: int):
-    """
-    Toggle like on a post. Returns updated like status/count.
-    """
-    me = request.user.profile
+    mep = request.user.profile
     post = get_object_or_404(Post, id=post_id)
 
-    if post.likes.filter(id=me.id).exists():
-        post.likes.remove(me)
+    if post.likes.filter(id=mep.id).exists():
+        post.likes.remove(mep)
         liked = False
     else:
-        post.likes.add(me)
+        post.likes.add(mep)
         liked = True
 
     return Response(
@@ -549,3 +548,4 @@ def like_post_api(request, post_id: int):
         },
         status=200,
     )
+#stupid fuck
