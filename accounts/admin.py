@@ -10,7 +10,7 @@ from .models import Profile
 class ProfileAdmin(admin.ModelAdmin):
     list_display = (
         'user',
-        'display_name',
+        'display_name',   # ✅ shows in list
         'rank',
         'xp',
         'beer',
@@ -24,14 +24,17 @@ class ProfileAdmin(admin.ModelAdmin):
         'thrown_up',
         'view_stats'
     )
-    search_fields = ('user__username', 'rank')
+
+    # ✅ allow searching by display name too
+    search_fields = ('user__username', 'display_name', 'rank')
     list_filter = ('rank',)
     ordering = ('-xp',)
 
     # Group fields into nice sections
     fieldsets = (
         ('User Info', {
-            'fields': ('user', 'rank', 'xp'),
+            # ✅ THIS is the key change
+            'fields': ('user', 'display_name', 'rank', 'xp'),
         }),
         ('Drink Stats', {
             'fields': (
@@ -44,7 +47,6 @@ class ProfileAdmin(admin.ModelAdmin):
 
     readonly_fields = ('xp',)  # Prevent editing XP manually
 
-    # Custom column with clickable link
     def view_stats(self, obj):
         return format_html(
             '<a class="button" href="/admin/accounts/profile/{}/change/">View Profile</a>',
@@ -68,6 +70,5 @@ class CustomUserAdmin(UserAdmin):
     view_profile_link.short_description = 'Profile'
 
 
-# Unregister default User and register custom one
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
