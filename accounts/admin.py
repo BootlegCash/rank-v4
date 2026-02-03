@@ -9,9 +9,19 @@ from .models import Profile
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
     list_display = (
-        'user', 'rank', 'xp',
-        'beer', 'floco', 'rum', 'whiskey', 'vodka', 'tequila',
-        'shotguns', 'snorkels', 'thrown_up',
+        'user',
+        'display_name',
+        'rank',
+        'xp',
+        'beer',
+        'floco',
+        'rum',
+        'whiskey',
+        'vodka',
+        'tequila',
+        'shotguns',
+        'snorkels',
+        'thrown_up',
         'view_stats'
     )
     search_fields = ('user__username', 'rank')
