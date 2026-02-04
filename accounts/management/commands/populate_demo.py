@@ -17,17 +17,19 @@ FIRST_NAMES = [
 ]
 
 POST_TEMPLATES = [
-    "Pre-game energy is insane 🔥",
-    "Ranked up tonight 😮‍💨",
+    "Pre-game energy is insane",
+    "Ranked up tonight",
     "Who’s trying to run it back this weekend?",
-    "Shotgun count going crazy 💥",
-    "Leaderboard check… I’m coming for #1 😈",
-    "Hydrate, eat, pace. Then rank up 🍻",
-    "After Hours vibes only 🌙✨",
+    "Shotgun count going crazy",
+    "Leaderboard check… I’m coming for #1",
+    "Hydrate, eat, pace. Then rank up",
+    "After Hours vibes only",
 ]
 
+EMOJI_ENDINGS = ["🔥", "😮‍💨", "🍻", "✨", "😈", "📈", "🏆", "💥", "🫡", "🌙"]
+
 def rand_username(prefix: str, n: int = 4) -> str:
-    # Must be <= 15 chars and lowercase letters/numbers only (per your RegistrationForm)
+    # Must be <= 15 chars and lowercase letters/numbers only
     suffix = ''.join(random.choices(string.digits, k=n))
     base = (prefix.lower()[: (15 - len(suffix))]) + suffix
     base = ''.join(ch for ch in base if ch.isalnum()).lower()
@@ -35,6 +37,25 @@ def rand_username(prefix: str, n: int = 4) -> str:
 
 def clamp_int(x, lo=0, hi=10_000):
     return max(lo, min(int(x), hi))
+
+def vary_text(base: str, username: str | None = None) -> str:
+    """
+    Make the text feel unique so you don't get back-to-back identical demo posts.
+    """
+    # Sometimes add a small tag/mention vibe (low frequency)
+    extra = ""
+    if username and random.random() < 0.18:
+        extra = f" @{username}"
+    return f"{base}{extra} {random.choice(EMOJI_ENDINGS)}".strip()
+
+def random_post_time_within(hours_back: int = 36):
+    """
+    Spread demo post timestamps across the last ~36 hours so the feed doesn't show
+    the same '6h' label repeatedly.
+    """
+    now = timezone.now()
+    minutes_back = random.randint(10, hours_back * 60)
+    return now - timedelta(minutes=minutes_back)
 
 
 class Command(BaseCommand):
@@ -65,28 +86,23 @@ class Command(BaseCommand):
         likes_per_post = max(0, int(opts["likes_per_post"]))
 
         # Tag so we can safely reset only what we created
-        DEMO_TAG_PREFIX = "demo_"
+        DEMO_TAG_PREFIX = "demo"
         created_usernames = []
 
         if reset:
-            # Delete users starting with demo_ OR the hub username
+            # Delete users starting with "demo" OR the hub username
             qs = User.objects.filter(username__startswith=DEMO_TAG_PREFIX) | User.objects.filter(username=hub_username)
-            # Cascade will remove Profile, Posts, DailyLogs via FK relations
             count = qs.count()
             qs.delete()
             self.stdout.write(self.style.WARNING(f"Reset: deleted {count} demo users (and related data)."))
 
         # Create hub account
         hub_user, created = User.objects.get_or_create(username=hub_username)
-        if created:
-            hub_user.set_password(hub_password)
-            hub_user.save()
-        else:
-            # ensure password is what you want for screenshots
-            hub_user.set_password(hub_password)
-            hub_user.save()
+        hub_user.set_password(hub_password)
+        hub_user.save()
 
         hub_profile = hub_user.profile  # auto-created via post_save signal
+
         # Give hub a strong-looking profile so screenshots look good
         hub_profile.beer = 60
         hub_profile.floco = 8
@@ -97,29 +113,27 @@ class Command(BaseCommand):
         hub_profile.shotguns = 12
         hub_profile.snorkels = 6
         hub_profile.thrown_up = 0
-        hub_profile.save()  # recalculates xp + rank in save()
-
-        # Display name is stored on profile in your RegistrationForm save()
-        # (Not required for auth; safe to set directly)
-        hub_profile.display_name = "Demo"
+        hub_profile.display_name = "Ryan"  # change this if you want
         hub_profile.save()
 
         self.stdout.write(self.style.SUCCESS(f"Hub account ready: {hub_username} / {hub_password}"))
 
         # Create fake users
-        for i in range(users_n):
+        for _ in range(users_n):
             name = random.choice(FIRST_NAMES)
-            # prefix with demo_ so reset is safe
+
+            # "demo" prefix so reset is safe; keep username <= 15 chars
             uname = rand_username(DEMO_TAG_PREFIX + name, n=4)
-            # Guarantee uniqueness if collisions
             while User.objects.filter(username=uname).exists():
                 uname = rand_username(DEMO_TAG_PREFIX + name, n=4)
 
-            u = User.objects.create_user(username=uname, password="DemoPass123!")
+            u = User.objects.create_user(username=uname)
+            u.set_unusable_password()
+            u.save()
             created_usernames.append(uname)
 
             p = u.profile
-            # Respect display_name constraint: letters only <=15
+            # Letters only <= 15
             display = ''.join(ch for ch in name if ch.isalpha())[:15] or "Player"
             p.display_name = display
 
@@ -132,7 +146,7 @@ class Command(BaseCommand):
             p.tequila = clamp_int(random.gauss(7, 8), 0, 50)
             p.shotguns = clamp_int(random.gauss(3, 3), 0, 25)
             p.snorkels = clamp_int(random.gauss(1, 2), 0, 15)
-            p.thrown_up = clamp_int(random.choice([0,0,0,1,1,2]), 0, 10)
+            p.thrown_up = clamp_int(random.choice([0, 0, 0, 1, 1, 2]), 0, 10)
             p.save()
 
             # Make hub friends with this user (mutual)
@@ -145,8 +159,7 @@ class Command(BaseCommand):
         # Optional: connect fake users to each other (denser leaderboard/feed)
         if mutual_network and len(fake_profiles) >= 3:
             for p in fake_profiles:
-                # each user gets ~3-8 random friends among fake users
-                k = random.randint(3, min(8, len(fake_profiles)-1))
+                k = random.randint(3, min(8, len(fake_profiles) - 1))
                 candidates = [x for x in fake_profiles if x.id != p.id]
                 picks = random.sample(candidates, k=k)
                 for other in picks:
@@ -159,7 +172,7 @@ class Command(BaseCommand):
             for d in range(days):
                 day = today - timedelta(days=d)
                 log, _ = DailyLog.objects.get_or_create(profile=profile, date=day)
-                # Small daily increments
+
                 log.beer = clamp_int(random.gauss(2, 2), 0, 10)
                 log.floco = clamp_int(random.gauss(1, 1), 0, 5)
                 log.rum = clamp_int(random.gauss(1, 2), 0, 8)
@@ -169,6 +182,7 @@ class Command(BaseCommand):
                 log.shotguns = clamp_int(random.choice([0, 0, 1, 2]), 0, 5)
                 log.snorkels = clamp_int(random.choice([0, 0, 0, 1]), 0, 3)
                 log.thrown_up = clamp_int(random.choice([0, 0, 0, 0, 1]), 0, 2)
+
                 log.xp = log.calculate_xp()
                 log.save()
 
@@ -180,30 +194,64 @@ class Command(BaseCommand):
         all_profiles_for_likes = [hub_profile] + fake_profiles
 
         created_posts = 0
+
         for p in fake_profiles:
-            for _ in range(posts_per_user):
-                text = random.choice(POST_TEMPLATES)
+            # Shuffle templates so each user gets different posts
+            templates = POST_TEMPLATES.copy()
+            random.shuffle(templates)
+
+            # If posts_per_user > len(templates), it will cycle, but with different emoji/mention
+            for i in range(posts_per_user):
+                base = templates[i % len(templates)]
+                # occasionally reference the hub username to feel social
+                text = vary_text(base, username=hub_profile.user.username)
+
                 post = Post.objects.create(user=p, content=text)
                 created_posts += 1
 
+                # Spread timestamps (if your Post model has created_at/created)
+                # If it doesn't, this safely does nothing.
+                for ts_field in ("created_at", "created", "timestamp", "date_created"):
+                    if hasattr(post, ts_field):
+                        setattr(post, ts_field, random_post_time_within(hours_back=36))
+                        post.save(update_fields=[ts_field])
+                        break
+
                 # Likes
+                likers_pool = [x for x in all_profiles_for_likes if x.id != p.id]
+                if likers_pool:
+                    likers = random.sample(
+                        likers_pool,
+                        k=min(likes_per_post, len(likers_pool))
+                    )
+                    for liker in likers:
+                        post.likes.add(liker)
+
+        # Hub posts too (so your feed looks alive when logged in as hub)
+        hub_templates = POST_TEMPLATES.copy()
+        random.shuffle(hub_templates)
+
+        for i in range(max(1, posts_per_user)):
+            base = hub_templates[i % len(hub_templates)]
+            text = vary_text(base)
+
+            post = Post.objects.create(user=hub_profile, content=text)
+            created_posts += 1
+
+            for ts_field in ("created_at", "created", "timestamp", "date_created"):
+                if hasattr(post, ts_field):
+                    setattr(post, ts_field, random_post_time_within(hours_back=18))
+                    post.save(update_fields=[ts_field])
+                    break
+
+            likers_pool = [x for x in all_profiles_for_likes if x.id != hub_profile.id]
+            if likers_pool:
                 likers = random.sample(
-                    [x for x in all_profiles_for_likes if x.id != p.id],
-                    k=min(likes_per_post, len(all_profiles_for_likes)-1)
+                    likers_pool,
+                    k=min(likes_per_post + 2, len(likers_pool))
                 )
                 for liker in likers:
                     post.likes.add(liker)
-
-        # Hub posts too (so your feed looks alive when logged in as hub)
-        for _ in range(max(1, posts_per_user)):
-            post = Post.objects.create(user=hub_profile, content=random.choice(POST_TEMPLATES))
-            created_posts += 1
-            likers = random.sample(
-                [x for x in all_profiles_for_likes if x.id != hub_profile.id],
-                k=min(likes_per_post + 2, len(all_profiles_for_likes)-1)
-            )
-            for liker in likers:
-                post.likes.add(liker)
 
         self.stdout.write(self.style.SUCCESS(
             f"Done. Hub: {hub_username}. Users: {len(fake_profiles)}. Posts: {created_posts}. Days/logs: {days_n}."
