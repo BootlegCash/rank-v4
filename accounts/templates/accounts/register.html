@@ -35,6 +35,19 @@
             {% endif %}
         </div>
 
+        <!-- EMAIL FIELD (NEW) -->
+        <div class="form-group" style="width: 90%; margin: 0 auto 1.5rem;">
+            <input type="email" name="email" id="id_email"
+                   class="form-input" placeholder="Email Address"
+                   value="{{ form.email.value|default:'' }}" required>
+            <small style="color: #777; display: block; margin-top: 0.5rem;">
+                We use your email for password recovery.
+            </small>
+            {% if form.email.errors %}
+                <div class="error-text">{{ form.email.errors.0 }}</div>
+            {% endif %}
+        </div>
+
         <!-- Display Name Field -->
         <div class="form-group" style="width: 90%; margin: 0 auto 1.5rem;">
             <input type="text" name="display_name" id="id_display_name" 
