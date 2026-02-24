@@ -154,3 +154,12 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Ranked Drinking <no-reply@rankeddrinking.com>")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+
+# Render / reverse proxy HTTPS fix
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://ranked-0xtx.onrender.com",
+]
