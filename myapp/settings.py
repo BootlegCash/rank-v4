@@ -2,8 +2,10 @@ import os
 from pathlib import Path
 import dj_database_url
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')  # change on production
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
@@ -140,3 +142,15 @@ LOGGING = {
     },
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }
+
+# Email (SendGrid)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.sendgrid.net"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Ranked Drinking <no-reply@rankeddrinking.com>")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
