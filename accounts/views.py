@@ -493,14 +493,15 @@ def profile_api(request):
     })
 
 class NeonPasswordResetView(auth_views.PasswordResetView):
-    template_name = "accounts/password_reset_form.html"
-    email_template_name = "registration/password_reset_email.html"
-    subject_template_name = "registration/password_reset_subject.txt"
+    template_name = "accounts/emails/password_reset_form.html"
+    email_template_name = "accounts/emails/password_reset_email.html"
+    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    html_email_template_name = "accounts/emails/password_reset_email.html"
     success_url = reverse_lazy("password_reset_done")
 
 
 class NeonPasswordResetDoneView(auth_views.PasswordResetDoneView):
-    template_name = "accounts/password_reset_done.html"
+    template_name = "accounts/emails/password_reset_done.html"
 
 
 class NeonPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
