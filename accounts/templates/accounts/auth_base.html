@@ -1,53 +1,272 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Drink Masters{% endblock %}</title>
-    <style>
-        :root {
-            --neon-cyan: #00fefc;
-            --hot-pink: #ff1493;
-            --glass-border: rgba(255, 255, 255, 0.1);
-        }
-        
-        body {
-            background: linear-gradient(135deg, #121212 0%, #1a1a2e 100%);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .auth-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 2rem;
-        }
-        
-        .glass-card {
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            border: 1px solid var(--glass-border);
-            padding: 2rem;
-            box-shadow: 0 0 30px rgba(255, 20, 147, 0.2);
-            width: 320px; /* Fixed width */
-            margin: 0 auto; /* Center the card */
-        }
-    </style>
-    {% block extra_css %}{% endblock %}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}After Hours: Ranked{% endblock %}</title>
+
+  <style>
+    :root{
+      --neon-cyan:#00fefc;
+      --hot-pink:#ff1493;
+
+      --bg-top:#0f0c29;
+      --bg-mid:#302b63;
+      --bg-bot:#24243e;
+
+      --card-bg:rgba(0,0,0,.38);
+      --card-border:rgba(255,255,255,.08);
+
+      --text:#e9eef6;
+      --muted:rgba(233,238,246,.65);
+      --muted2:rgba(233,238,246,.45);
+      --danger:#ff4b5c;
+      --success:#00ffb0;
+
+      --radius:22px;
+    }
+
+    /* TRUE center, always */
+    html, body {
+      height: 100%;
+    }
+
+    body{
+      margin:0;
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 52%, var(--bg-bot) 100%);
+      display:grid;
+      place-items:center;
+      overflow-x:hidden;
+    }
+
+    /* Soft ambient blobs (subtle, keeps center feeling correct) */
+    body::before,
+    body::after{
+      content:"";
+      position:fixed;
+      inset:auto;
+      width:520px;
+      height:520px;
+      filter: blur(70px);
+      opacity:.16;
+      z-index:0;
+      pointer-events:none;
+      border-radius:999px;
+    }
+    body::before{
+      left:-140px;
+      top:-160px;
+      background: radial-gradient(circle at 30% 30%, var(--hot-pink), transparent 60%);
+    }
+    body::after{
+      right:-160px;
+      bottom:-180px;
+      background: radial-gradient(circle at 30% 30%, var(--neon-cyan), transparent 60%);
+    }
+
+    .auth-container{
+      position:relative;
+      z-index:1;
+      width:100%;
+      display:flex;
+      justify-content:center;
+      padding: 28px 18px;
+      box-sizing:border-box;
+    }
+
+    /* Card */
+    .glass-card{
+      width:100%;
+      max-width: 440px;
+      padding: 34px 30px;
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(14px);
+
+      /* balanced glow so it doesn't "pull" down */
+      box-shadow:
+        0 0 40px rgba(255,20,147,.15),
+        0 0 40px rgba(0,254,252,.12),
+        0 18px 50px rgba(0,0,0,.35);
+    }
+
+    /* Optional tighter layout helper */
+    .neon-card{
+      max-width: 520px;
+      margin:0 auto;
+      text-align:center;
+      padding: 34px 30px;
+    }
+
+    .icon-badge{
+      width:58px;
+      height:58px;
+      margin: 0 auto 14px;
+      border-radius: 18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 26px;
+      background: rgba(0,245,255,0.12);
+      border:1px solid rgba(0,245,255,0.28);
+      box-shadow: 0 0 22px rgba(0,245,255,.18);
+    }
+    .icon-badge.success{
+      background: rgba(0,255,176,0.12);
+      border:1px solid rgba(0,255,176,0.28);
+      box-shadow: 0 0 22px rgba(0,255,176,.18);
+    }
+    .icon-badge.warning{
+      background: rgba(255,80,200,0.12);
+      border:1px solid rgba(255,80,200,0.26);
+      box-shadow: 0 0 22px rgba(255,80,200,.16);
+    }
+
+    .neon-title{
+      margin: 6px 0 10px;
+      font-size: 30px;
+      line-height: 1.08;
+      font-weight: 900;
+      letter-spacing: .4px;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 16px rgba(0,254,252,.55);
+      text-align:center;
+    }
+
+    .muted-text{
+      color: var(--muted);
+      margin: 0 0 12px;
+      text-align:center;
+    }
+    .helper-text{
+      color: var(--muted2);
+      font-size: 13px;
+      margin: 0 0 18px;
+      text-align:center;
+    }
+
+    /* Forms */
+    .register-form{
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+      width:100%;
+    }
+
+    .form-group{
+      width:100%;
+    }
+
+    .form-input{
+      width:100%;
+      box-sizing:border-box;
+      padding: 14px 14px;
+      border-radius: 14px;
+      outline:none;
+
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--text);
+      font-size: 14px;
+    }
+    .form-input::placeholder{
+      color: rgba(233,238,246,.45);
+    }
+    .form-input:focus{
+      border-color: rgba(0,254,252,.35);
+      box-shadow: 0 0 0 4px rgba(0,254,252,.10);
+    }
+
+    .error-text{
+      margin-top: 8px;
+      color: rgba(255, 90, 105, .95);
+      font-size: 13px;
+      text-align:left;
+    }
+
+    .alert-error{
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,75,92,.10);
+      border: 1px solid rgba(255,75,92,.25);
+      color: rgba(255,180,186,.95);
+      font-size: 13px;
+      text-align:left;
+    }
+
+    /* Buttons */
+    .neon-btn,
+    .submit-btn{
+      display:inline-flex;
+      justify-content:center;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+      cursor:pointer;
+      border:none;
+      user-select:none;
+      font-weight: 900;
+      letter-spacing: .9px;
+      border-radius: 18px;
+      padding: 14px 18px;
+      color: #fff;
+
+      background: linear-gradient(90deg, var(--hot-pink), var(--neon-cyan));
+      box-shadow:
+        0 14px 30px rgba(255,20,147,.18),
+        0 14px 30px rgba(0,254,252,.12);
+    }
+
+    .neon-btn:hover,
+    .submit-btn:hover{
+      transform: translateY(-1px);
+      filter: brightness(1.02);
+    }
+
+    .neon-full-btn{
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding: 15px 0;
+      border-radius: 18px;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    .secondary-link{
+      display:block;
+      margin-top: 16px;
+      text-align:center;
+      color: var(--neon-cyan);
+      font-weight: 800;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* Small screens */
+    @media (max-width: 420px){
+      .glass-card{
+        padding: 28px 22px;
+        border-radius: 20px;
+      }
+      .neon-title{
+        font-size: 26px;
+      }
+    }
+  </style>
+
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <div class="auth-container">
-        {% block content %}
-        {% endblock %}
-    </div>
-    
-    {% block extra_js %}{% endblock %}
+  <div class="auth-container">
+    {% block content %}{% endblock %}
+  </div>
+
+  {% block extra_js %}{% endblock %}
 </body>
 </html>
