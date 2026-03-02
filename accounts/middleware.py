@@ -1,38 +1,46 @@
-import os
-from django.http import HttpResponseForbidden
+from django.conf import settings
+from django.http import HttpResponseForbidden, HttpResponse
 
 class WebGateMiddleware:
     """
-    Blocks normal browser traffic unless:
-    - request includes X-APP-KEY header that matches APP_GATE_KEY
-    OR
-    - request is for admin/static/health etc. (allowlist)
+    Blocks public web access unless a valid gate key is provided.
+    Allows Render health checks (HEAD /).
+    Gate can be provided via:
+      - header: X-AH-GATE: <key>
+      - query param: ?k=<key>
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.gate_key = os.getenv("APP_GATE_KEY", "")
-        self.allow_prefixes = (
-            "/static/",
-            "/admin/",
-            "/api/",          # allow your mobile API
-        )
+        self.gate_key = getattr(settings, "WEB_GATE_KEY", "")
+
+        # Paths you want accessible (still gated unless you add them to "public")
+        self.always_allow_paths = {
+            "/favicon.ico",
+        }
+
+        # If you ever want certain pages PUBLIC (no key), add them here.
+        # (You said you don't want the website accessible, so keep this empty.)
+        self.public_paths = set()
 
     def __call__(self, request):
-        path = request.path
+        # ✅ Allow Render health check (Render hits HEAD /)
+        if request.method == "HEAD" and request.path == "/":
+            return HttpResponse("ok")
 
-        # Allow certain paths always
-        if path.startswith(self.allow_prefixes):
+        # Allow truly public paths (optional)
+        if request.path in self.public_paths or request.path in self.always_allow_paths:
             return self.get_response(request)
 
-        # If no gate key configured, do nothing
+        # If no gate key configured, don't block (safer for local dev)
         if not self.gate_key:
             return self.get_response(request)
 
-        # Allow if correct header present
-        client_key = request.headers.get("X-APP-KEY", "")
-        if client_key == self.gate_key:
+        # Check header or query param
+        header_key = request.META.get("HTTP_X_AH_GATE", "")
+        query_key = request.GET.get("k", "")
+
+        if header_key == self.gate_key or query_key == self.gate_key:
             return self.get_response(request)
 
-        # Otherwise block
-        return HttpResponseForbidden("Web access disabled.")
+        return HttpResponseForbidden("Forbidden")

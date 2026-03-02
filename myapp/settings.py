@@ -43,8 +43,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    "accounts.middleware.WebGateMiddleware",
+    
     'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
+    "accounts.middleware.WebGateMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
