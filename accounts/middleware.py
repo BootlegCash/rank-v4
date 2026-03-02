@@ -1,46 +1,59 @@
-from django.conf import settings
+import os
 from django.http import HttpResponseForbidden, HttpResponse
+
 
 class WebGateMiddleware:
     """
-    Blocks public web access unless a valid gate key is provided.
-    Allows Render health checks (HEAD /).
-    Gate can be provided via:
-      - header: X-AH-GATE: <key>
-      - query param: ?k=<key>
+    Protects the web UI from public access.
+
+    - Allows API routes for Flutter
+    - Allows password reset pages
+    - Allows Render health checks
+    - Blocks everything else unless correct gate key is provided
+
+    Gate key can be passed via:
+        ?gate=<key>
+        Header: X-AH-GATE: <key>
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.gate_key = getattr(settings, "WEB_GATE_KEY", "")
+        self.gate_key = os.getenv("APP_GATE_KEY", "")
 
-        # Paths you want accessible (still gated unless you add them to "public")
-        self.always_allow_paths = {
+        # Routes that should ALWAYS be accessible
+        self.allowed_prefixes = (
+            "/accounts/api/",            # Flutter API
+            "/accounts/password_reset/",
+            "/accounts/reset/",          # password confirm links
+            "/accounts/password_reset/done/",
+            "/accounts/reset/done/",
+            "/static/",
+            "/media/",
             "/favicon.ico",
-        }
-
-        # If you ever want certain pages PUBLIC (no key), add them here.
-        # (You said you don't want the website accessible, so keep this empty.)
-        self.public_paths = set()
+        )
 
     def __call__(self, request):
-        # ✅ Allow Render health check (Render hits HEAD /)
-        if request.method == "HEAD" and request.path == "/":
+        path = request.path
+
+        # ✅ Allow Render health check (HEAD /)
+        if request.method == "HEAD" and path == "/":
             return HttpResponse("ok")
 
-        # Allow truly public paths (optional)
-        if request.path in self.public_paths or request.path in self.always_allow_paths:
-            return self.get_response(request)
+        # ✅ Always allow specific prefixes
+        for prefix in self.allowed_prefixes:
+            if path.startswith(prefix):
+                return self.get_response(request)
 
-        # If no gate key configured, don't block (safer for local dev)
+        # ✅ If no gate key set, don't block (safe for local dev)
         if not self.gate_key:
             return self.get_response(request)
 
-        # Check header or query param
+        # Check for gate key in query param or header
+        query_key = request.GET.get("gate", "")
         header_key = request.META.get("HTTP_X_AH_GATE", "")
-        query_key = request.GET.get("k", "")
 
-        if header_key == self.gate_key or query_key == self.gate_key:
+        if query_key == self.gate_key or header_key == self.gate_key:
             return self.get_response(request)
 
+        # ❌ Block everything else
         return HttpResponseForbidden("Forbidden")
