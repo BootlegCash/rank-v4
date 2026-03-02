@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')  # change on production
-DEBUG = os.environ.get('DEBUG', 'True') == 'False'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # ✅ Add your render URL and localhost
 ALLOWED_HOSTS = [
@@ -43,7 +43,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    
+    "corsheaders.middleware.CorsMiddleware",
     'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     "accounts.middleware.AppGateMiddleware",
@@ -132,11 +132,7 @@ SIMPLE_JWT = {
 
 # ----------------- CORS -----------------
 CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.onrender.com',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+
 
 # ----------------- LOGGING (optional debug) -----------------
 LOGGING = {
