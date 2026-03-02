@@ -12,9 +12,11 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 # ✅ Add your render URL and localhost
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    '.onrender.com',
+    "afterhoursranked.com",
+    "www.afterhoursranked.com",
+    "ranked-0xtx.onrender.com",
+    "127.0.0.1",
+    "localhost",
 ]
 
 # ----------------- INSTALLED APPS -----------------
@@ -165,4 +167,6 @@ USE_X_FORWARDED_HOST = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ranked-0xtx.onrender.com",
+     "https://afterhoursranked.com",
+    "https://www.afterhoursranked.com",
 ]
