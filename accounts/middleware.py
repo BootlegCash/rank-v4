@@ -1,79 +1,75 @@
 import os
-from django.conf import settings
-from django.http import HttpResponseForbidden, HttpResponseRedirect
-from django.urls import reverse
-from django.utils.deprecation import MiddlewareMixin
+from django.http import HttpResponseForbidden
 
-
-class AppGateMiddleware(MiddlewareMixin):
+class AppGateMiddleware:
     """
-    Simple "private web" gate.
-    - Requires ?k=<APP_GATE_KEY> on first visit (production)
-    - Then stores gate state in session so users don't need the key every time
-    - Skips API endpoints used by the Flutter app
+    Simple "app-only" gate for HTML pages.
+    - Accepts gate key via:
+        1) query param ?k=...
+        2) header X-App-Gate-Key: ...
+    - If valid once, stores session flag so redirects still work.
+    - Always allows API + static + admin assets.
     """
 
-    SESSION_FLAG = "app_gate_ok"
+    def __init__(self, get_response):
+        self.get_response = get_response
 
-    def __init__(self, get_response=None):
-        super().__init__(get_response)
-        self.expected_key = os.getenv("APP_GATE_KEY", "").strip()
+        # Prefer APP_GATE_KEY, but accept WEB_GATE_KEY / web_gate_key too
+        self.expected_key = (
+            os.getenv("APP_GATE_KEY")
+            or os.getenv("WEB_GATE_KEY")
+            or os.getenv("web_gate_key")
+        )
 
-    def process_request(self, request):
-        # If no gate key is configured, do nothing
+    def __call__(self, request):
+        # If no key configured, don't gate anything
         if not self.expected_key:
-            return None
-
-        # In DEBUG, do nothing (so local dev is normal)
-        if getattr(settings, "DEBUG", False):
-            return None
+            return self.get_response(request)
 
         path = request.path or "/"
 
-        # Always allow these paths (Flutter API + assets)
-        if path.startswith("/accounts/api/"):
-            return None
-        if path.startswith("/static/"):
-            return None
-        if path.startswith("/media/"):
-            return None
+        # Always allow these (otherwise your app + admin assets break)
+        if (
+            path.startswith("/static/")
+            or path.startswith("/media/")
+            or path.startswith("/accounts/api/")  # Flutter hits this
+            or path == "/favicon.ico"
+        ):
+            return self.get_response(request)
 
-        # Optional: allow admin without gate (still protected by login)
-        if path.startswith("/admin/"):
-            return None
+        # Render health checks often do HEAD /
+        # If you block this, Render can think your service is unhealthy.
+        ua = (request.META.get("HTTP_USER_AGENT") or "")
+        if request.method == "HEAD" and path == "/":
+            return self.get_response(request)
+        if "Go-http-client" in ua and path == "/":
+            return self.get_response(request)
 
-        # Allow Django health checks etc if you have them
-        if path == "/favicon.ico":
-            return None
+        # If already unlocked in this session, allow
+        if request.session.get("app_gate_ok") is True:
+            return self.get_response(request)
 
-        # If already unlocked this session, allow
-        if request.session.get(self.SESSION_FLAG) is True:
-            return None
+        # Check key from querystring or header
+        provided = request.GET.get("k") or request.headers.get("X-App-Gate-Key")
 
-        # Check key in querystring
-        supplied = (request.GET.get("k") or "").strip()
-        if supplied and supplied == self.expected_key:
-            request.session[self.SESSION_FLAG] = True
+        if provided and provided == self.expected_key:
+            request.session["app_gate_ok"] = True
+            response = self.get_response(request)
 
-            # Redirect to same URL WITHOUT the k param (clean URL)
-            # Keep any other query params.
-            q = request.GET.copy()
-            if "k" in q:
-                q.pop("k")
+            # Also drop a cookie (helps some browser cases)
+            response.set_cookie(
+                "app_gate_ok",
+                "1",
+                max_age=60 * 60 * 24 * 7,  # 7 days
+                secure=True,
+                httponly=True,
+                samesite="Lax",
+            )
+            return response
 
-            new_url = path
-            if q:
-                new_url = f"{path}?{q.urlencode()}"
+        # Cookie fallback (if session got cleared but cookie exists)
+        if request.COOKIES.get("app_gate_ok") == "1":
+            request.session["app_gate_ok"] = True
+            return self.get_response(request)
 
-            return HttpResponseRedirect(new_url)
-
-        # Not allowed: return a real 403 page (helps iOS safari views)
-        return HttpResponseForbidden(
-            "<html><head><meta name='viewport' content='width=device-width, initial-scale=1' />"
-            "<title>Private</title></head>"
-            "<body style='font-family:system-ui;background:#0f0c29;color:#fff;padding:24px;'>"
-            "<h2 style='margin:0 0 8px;'>Private</h2>"
-            "<p style='opacity:.8;margin:0 0 14px;'>This site isn’t publicly accessible.</p>"
-            "<p style='opacity:.6;margin:0;'>If you’re the owner, open a link containing the access key.</p>"
-            "</body></html>"
-        )
+        return HttpResponseForbidden("Forbidden: app gate key required.")
