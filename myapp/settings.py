@@ -45,8 +45,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     
     'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
-    "accounts.middleware.WebGateMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
+    "accounts.middleware.APPGateMiddleware",
+
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
