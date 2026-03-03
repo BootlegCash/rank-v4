@@ -4,6 +4,8 @@ from datetime import datetime
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.templatetags.static import static
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -14,7 +16,6 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .serializers import RegisterSerializer
 from .models import Profile, FriendRequest, DailyLog, current_log_date, Post
-from django.templatetags.static import static
 from .serializers import (
     ProfileMiniSerializer,
     ProfileSerializer,
@@ -22,6 +23,7 @@ from .serializers import (
     DailyLogSerializer,
     PostSerializer,
 )
+
 
 # -------- Helpers --------
 def _me(request) -> Profile:
@@ -38,11 +40,32 @@ def _safe_int(val, default=0):
 
 
 def _abs(request, relurl: str) -> str:
+    """
+    Convert a relative URL/path into an absolute URL.
+    If already absolute, keep it.
+    """
+    if not relurl:
+        return ""
+    if relurl.startswith("http://") or relurl.startswith("https://"):
+        return relurl
     return request.build_absolute_uri(relurl)
 
 
+def _safe_static_url(relpath: str) -> str:
+    """
+    Manifest-safe static():
+    If CompressedManifestStaticFilesStorage can't find the entry, do NOT crash.
+    """
+    try:
+        return static(relpath)  # may raise ValueError if not in manifest
+    except Exception:
+        # fallback to plain /static/...
+        base = settings.STATIC_URL or "/static/"
+        return f"{base}{relpath}".replace("//", "/")
+
+
 def _static_abs(request, relpath: str) -> str:
-    return _abs(request, static(relpath))
+    return _abs(request, _safe_static_url(relpath))
 
 
 @api_view(["GET"])
@@ -51,12 +74,10 @@ def me(request):
     user = request.user
     profile = user.profile
 
-    # Display name: prefer profile.display_name, fallback to first_name, then username
     display_name = (getattr(profile, "display_name", "") or "").strip() \
                    or (getattr(user, "first_name", "") or "").strip() \
                    or user.username
 
-    # Avatar (fallback to static placeholder)
     avatar_url = None
     if getattr(profile, "avatar", None):
         try:
@@ -66,7 +87,6 @@ def me(request):
     if not avatar_url:
         avatar_url = _static_abs(request, "img/avatar_placeholder.png")
 
-    # Counters
     beer     = int(getattr(profile, "beer", 0) or 0)
     floco    = int(getattr(profile, "floco", 0) or 0)
     rum      = int(getattr(profile, "rum", 0) or 0)
@@ -79,7 +99,6 @@ def me(request):
     snorkels  = int(getattr(profile, "snorkels", 0) or 0)
     thrown_up = int(getattr(profile, "thrown_up", 0) or 0)
 
-    # Rank/XP
     rank_name    = getattr(profile, "rank", "Bronze")
     xp           = int(getattr(profile, "xp", 0) or 0)
     next_rank_xp = int(getattr(profile, "next_rank_xp", 600) or 600)
@@ -96,11 +115,9 @@ def me(request):
         "beer": beer, "floco": floco, "rum": rum,
         "whiskey": whiskey, "vodka": vodka, "tequila": tequila,
 
-        # plural aliases some UIs use
         "beers": beer, "flocos": floco, "rums": rum,
         "whiskeys": whiskey, "vodkas": vodka, "tequilas": tequila,
 
-        # totals + aliases
         "total_drinks": computed_total,
         "total": computed_total,
         "totalDrinks": computed_total,
@@ -137,10 +154,6 @@ def requests_list(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_search(request):
-    """
-    Search users by username.
-    ?q=partial  → up to 10 profiles (not you, not already friends).
-    """
     q = (request.GET.get("q") or "").strip()
     mep = _me(request)
     if not q:
@@ -155,7 +168,6 @@ def user_search(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def send_request(request):
-    """JSON: { "username": "target" }"""
     mep = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
@@ -207,7 +219,6 @@ def reject_request(request, request_id: int):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def remove_friend(request):
-    """JSON: { "username": "target" }  – removes both directions."""
     mep = _me(request)
     username = (request.data.get("username") or "").strip()
     if not username:
@@ -230,9 +241,6 @@ def remove_friend(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def log_drink(request):
-    """
-    Upserts to today's DailyLog AND rolls increments into Profile totals.
-    """
     mep = _me(request)
 
     raw_date = (request.data.get("date") or "").strip()
@@ -278,19 +286,10 @@ def log_drink(request):
     )
 
 
-# ✅ FIXED REGISTER
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @transaction.atomic
 def register(request):
-    """
-    POST /accounts/api/register/
-
-    Accepts password aliases:
-      password, pass, pwd, password1
-    Confirmation aliases:
-      password2, confirm_password, confirmPassword
-    """
     ser = RegisterSerializer(data=request.data)
     if not ser.is_valid():
         return Response({"detail": ser.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -301,7 +300,6 @@ def register(request):
     if not username:
         return Response({"detail": {"username": ["Username is required."]}}, status=400)
 
-    # ✅ pull password from multiple possible keys (validated_data OR raw request)
     password = (
         data.get("password")
         or data.get("password1")
@@ -331,7 +329,6 @@ def register(request):
     email = (data.get("email") or "").strip()
     display_name = (data.get("display_name") or "").strip() or username
 
-    # Create user
     user = User.objects.create_user(
         username=username,
         password=password,
@@ -352,7 +349,6 @@ def register(request):
         profile.display_name = display_name
         profile.save()
 
-    # ✅ mint JWT tokens right here
     token_ser = TokenObtainPairSerializer(data={"username": username, "password": password})
     token_ser.is_valid(raise_exception=True)
     tokens = token_ser.validated_data
@@ -377,7 +373,6 @@ def register(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def cancel_request(request):
-    """POST { "username": "<their-username>" }"""
     mep = request.user.profile
     username = (request.data.get("username") or "").strip()
     if not username:
@@ -399,23 +394,12 @@ def cancel_request(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def friend_profile_api(request, username: str):
-    """
-    GET /accounts/api/friends/<username>/
-    Returns the same shape as /accounts/api/profile/ but for a target user.
-    """
-    def _abs(req, relurl: str) -> str:
-        return req.build_absolute_uri(relurl)
-
-    def _static_abs(req, relpath: str) -> str:
-        return _abs(req, static(relpath))
-
     try:
         target_user = User.objects.get(username=username)
     except User.DoesNotExist:
         return Response({"detail": "user not found"}, status=404)
 
     p = target_user.profile
-
     display_name = (getattr(p, "display_name", "") or "").strip() or target_user.username
 
     avatar_url = None
@@ -492,7 +476,6 @@ def leaderboard(request):
     return Response(data)
 
 
-# -------- Feed: list / create / like --------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def feed(request):
@@ -548,4 +531,3 @@ def like_post_api(request, post_id: int):
         },
         status=200,
     )
-#stupid fuck
