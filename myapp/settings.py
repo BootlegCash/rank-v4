@@ -172,3 +172,15 @@ CSRF_TRUSTED_ORIGINS = [
 JAZZMIN_UI_TWEAKS = {
     "theme": "flatly",
 }
+
+JAZZMIN_SETTINGS = {
+    "site_title": "After Hours Admin",
+    "site_header": "After Hours",
+    "site_brand": "After Hours Ranked",
+    "welcome_sign": "Welcome to After Hours Admin",
+}
+
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",   # 🔥 best for your neon vibe
+}
