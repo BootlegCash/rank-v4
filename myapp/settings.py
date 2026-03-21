@@ -177,7 +177,27 @@ JAZZMIN_SETTINGS = {
     "site_title": "After Hours Admin",
     "site_header": "After Hours",
     "site_brand": "After Hours Ranked",
-    "welcome_sign": "Welcome to After Hours Admin",
+
+    "icons": {
+        "accounts.Profile": "fas fa-user",
+        "auth.User": "fas fa-users",
+        "auth.Group": "fas fa-user-shield",
+        "achievements.Achievement": "fas fa-trophy",
+    },
+
+    "order_with_respect_to": [
+        "accounts",
+        "achievements",
+        "auth",
+    ],
+
+    "custom_links": {
+        "accounts": [{
+            "name": "📊 Stats Dashboard",
+            "url": "admin:accounts_profile_stats",
+            "icon": "fas fa-chart-bar",
+        }]
+    }
 }
 
 
