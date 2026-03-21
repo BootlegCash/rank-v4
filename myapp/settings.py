@@ -168,3 +168,7 @@ CSRF_TRUSTED_ORIGINS = [
      "https://afterhoursranked.com",
     "https://www.afterhoursranked.com",
 ]
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",
+}
