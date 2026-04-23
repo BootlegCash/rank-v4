@@ -3,6 +3,13 @@ from django.http import HttpResponseForbidden
 ALLOWED_PATHS = [
     '/accounts/api/',
     '/admin/',
+    '/accounts/api/',
+    '/admin/',
+    '/accounts/password_reset/',
+    '/accounts/reset/',         # password_reset_confirm links look like /accounts/reset/uidb64/token/
+    '/accounts/password_reset_done/',
+    '/accounts/password_reset_complete/',
+    '/static/',  
 ]
 
 class StaffOnlyWebMiddleware:
