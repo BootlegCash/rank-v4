@@ -187,6 +187,14 @@ def send_request(request):
     if FriendRequest.objects.filter(from_user=to, to_user=mep, accepted=False).exists():
         return Response({"detail": "they already sent you a request"}, status=409)
 
+    # Check if request already exists
+    if FriendRequest.objects.filter(from_user=mep, to_user=to).exists():
+        return Response({'error': 'Friend request already sent.'}, status=400)
+
+    # Check if already friends
+    if mep.friends.filter(id=to.id).exists():
+        return Response({'error': 'Already friends.'}, status=400)
+
     fr = FriendRequest.objects.create(from_user=mep, to_user=to)
     return Response(FriendRequestSerializer(fr).data, status=201)
 
