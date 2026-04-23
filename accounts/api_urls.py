@@ -39,4 +39,7 @@ urlpatterns = [
         name="friend-profile-api",
     ),
 
+  path('calendar/', v.monthly_calendar_api, name='api_monthly_calendar'),
+path('calendar/<int:year>/<int:month>/', v.monthly_calendar_api, name='api_monthly_calendar_ym'),
+path('calendar/<int:year>/<int:month>/<int:day>/', v.day_log_detail_api, name='api_day_log_detail'),
 ]

@@ -7,6 +7,9 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.templatetags.static import static
 
+import calendar as cal_module
+from datetime import datetime, timedelta
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -539,3 +542,81 @@ def like_post_api(request, post_id: int):
         },
         status=200,
     )
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def monthly_calendar_api(request, year=None, month=None):
+    profile = _me(request)
+    from django.utils import timezone
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
+    if not year:
+        year = today.year
+    if not month:
+        month = today.month
+
+    year = int(year)
+    month = int(month)
+
+    first_day = datetime(year, month, 1).date()
+    if month == 12:
+        last_day = datetime(year + 1, 1, 1).date() - timedelta(days=1)
+    else:
+        last_day = datetime(year, month + 1, 1).date() - timedelta(days=1)
+
+    logs_for_month = DailyLog.objects.filter(
+        profile=profile,
+        date__gte=first_day,
+        date__lte=last_day
+    )
+
+    logs_map = {log.date.isoformat(): DailyLogSerializer(log).data for log in logs_for_month}
+
+    cal = cal_module.Calendar(firstweekday=6)
+    weeks = []
+    for week in cal.monthdatescalendar(year, month):
+        week_data = []
+        for day in week:
+            week_data.append({
+                "date": day.isoformat(),
+                "day": day.day,
+                "is_current_month": day.month == month,
+                "is_today": day == today,
+                "log": logs_map.get(day.isoformat()),
+            })
+        weeks.append(week_data)
+
+    prev = (first_day - timedelta(days=1))
+    next_ = (last_day + timedelta(days=1))
+
+    return Response({
+        "year": year,
+        "month": month,
+        "month_name": cal_module.month_name[month],
+        "today": today.isoformat(),
+        "prev_year": prev.year,
+        "prev_month": prev.month,
+        "next_year": next_.year,
+        "next_month": next_.month,
+        "weeks": weeks,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def day_log_detail_api(request, year, month, day):
+    profile = _me(request)
+    try:
+        log_date = datetime(int(year), int(month), int(day)).date()
+    except ValueError:
+        return Response({"detail": "Invalid date"}, status=400)
+
+    try:
+        daily_log = DailyLog.objects.get(profile=profile, date=log_date)
+        return Response({"date": log_date.isoformat(), "log": DailyLogSerializer(daily_log).data})
+    except DailyLog.DoesNotExist:
+        return Response({"date": log_date.isoformat(), "log": None})
