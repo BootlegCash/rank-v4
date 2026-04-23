@@ -2,17 +2,21 @@ import os
 from pathlib import Path
 import dj_database_url
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')  # change on production
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # ✅ Add your render URL and localhost
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    '.onrender.com',
+    "afterhoursranked.com",
+    "www.afterhoursranked.com",
+    "ranked-0xtx.onrender.com",
+    "127.0.0.1",
+    "localhost",
 ]
 
 # ----------------- INSTALLED APPS -----------------
@@ -39,8 +43,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
     'django.contrib.sessions.middleware.SessionMiddleware',
+
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -126,11 +132,7 @@ SIMPLE_JWT = {
 
 # ----------------- CORS -----------------
 CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.onrender.com',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+
 
 # ----------------- LOGGING (optional debug) -----------------
 LOGGING = {
@@ -140,4 +142,66 @@ LOGGING = {
         'console': {'class': 'logging.StreamHandler'},
     },
     'root': {'handlers': ['console'], 'level': 'INFO'},
+}
+
+# Email (SendGrid)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.sendgrid.net"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+DEFAULT_FROM_EMAIL = "no-reply@rankeddrinking.com"
+SERVER_EMAIL = "no-reply@rankeddrinking.com"
+
+# Helps Django build absolute links in emails in some cases
+SITE_DOMAIN = os.getenv("SITE_DOMAIN", "127.0.0.1:8000")
+
+
+# Render / reverse proxy HTTPS fix
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://ranked-0xtx.onrender.com",
+     "https://afterhoursranked.com",
+    "https://www.afterhoursranked.com",
+]
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",
+}
+
+JAZZMIN_SETTINGS = {
+    "site_title": "After Hours Admin",
+    "site_header": "After Hours",
+    "site_brand": "After Hours Ranked",
+
+    "icons": {
+        "accounts.Profile": "fas fa-user",
+        "auth.User": "fas fa-users",
+        "auth.Group": "fas fa-user-shield",
+        "achievements.Achievement": "fas fa-trophy",
+    },
+
+    "order_with_respect_to": [
+        "accounts",
+        "achievements",
+        "auth",
+    ],
+
+    "custom_links": {
+        "accounts": [{
+            "name": "📊 Stats Dashboard",
+            "url": "admin:accounts_profile_stats",
+            "icon": "fas fa-chart-bar",
+        }]
+    }
+}
+
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",   # 🔥 best for your neon vibe
 }

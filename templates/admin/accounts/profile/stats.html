@@ -1,0 +1,97 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="padding: 12px 0;">
+  <h1 style="margin-bottom: 18px;">After Hours Profile Statistics</h1>
+
+  <div style="
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:14px;
+    margin-bottom:24px;
+  ">
+    <div style="background:#0f172a;color:#fff;padding:18px;border-radius:16px;">
+      <div style="opacity:.75;font-size:12px;">Total Profiles</div>
+      <div style="font-size:28px;font-weight:800;">{{ total_profiles }}</div>
+    </div>
+
+    <div style="background:#0f172a;color:#fff;padding:18px;border-radius:16px;">
+      <div style="opacity:.75;font-size:12px;">Total XP</div>
+      <div style="font-size:28px;font-weight:800;">{{ total_xp }}</div>
+    </div>
+
+    <div style="background:#0f172a;color:#fff;padding:18px;border-radius:16px;">
+      <div style="opacity:.75;font-size:12px;">Favorite Drink Overall</div>
+      <div style="font-size:28px;font-weight:800;">{{ favorite_drink_name }}</div>
+    </div>
+
+    <div style="background:#0f172a;color:#fff;padding:18px;border-radius:16px;">
+      <div style="opacity:.75;font-size:12px;">Shotguns / Snorkels / Thrown Up</div>
+      <div style="font-size:20px;font-weight:800;">
+        💥 {{ total_shotguns }} &nbsp; 🤿 {{ total_snorkels }} &nbsp; 🤢 {{ total_thrown_up }}
+      </div>
+    </div>
+  </div>
+
+  <div style="
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    align-items:start;
+  ">
+    <div style="background:white;border-radius:16px;padding:18px;">
+      <h2 style="margin-top:0; color:#111827;">Drink Totals</h2>
+      <canvas id="drinkChart"></canvas>
+    </div>
+
+    <div style="background:white;border-radius:16px;padding:18px;">
+      <h2 style="margin-top:0; color:#111827;">Rank Distribution</h2>
+      <canvas id="rankChart"></canvas>
+    </div>
+  </div>
+</div>
+
+{{ drink_labels|json_script:"drink-labels" }}
+{{ drink_values|json_script:"drink-values" }}
+{{ rank_labels|json_script:"rank-labels" }}
+{{ rank_values|json_script:"rank-values" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const drinkLabels = JSON.parse(document.getElementById("drink-labels").textContent);
+  const drinkValues = JSON.parse(document.getElementById("drink-values").textContent);
+  const rankLabels = JSON.parse(document.getElementById("rank-labels").textContent);
+  const rankValues = JSON.parse(document.getElementById("rank-values").textContent);
+
+  new Chart(document.getElementById("drinkChart"), {
+    type: "bar",
+    data: {
+      labels: drinkLabels,
+      datasets: [{
+        label: "Total Drinks Logged",
+        data: drinkValues,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  new Chart(document.getElementById("rankChart"), {
+    type: "doughnut",
+    data: {
+      labels: rankLabels,
+      datasets: [{
+        data: rankValues
+      }]
+    },
+    options: {
+      responsive: true
+    }
+  });
+</script>
+{% endblock %}

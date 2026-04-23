@@ -12,6 +12,9 @@ from django.views.generic import CreateView
 from django.urls import reverse_lazy
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth import views as auth_views
+
 
 from achievements.models import Achievement
 from .forms import RegistrationForm, StatsUpdateForm, SendFriendRequestForm, PostForm, DailyLogForm
@@ -489,5 +492,35 @@ def profile_api(request):
         "rank": profile.rank,
     })
 
+class NeonPasswordResetView(auth_views.PasswordResetView):
+    template_name = "accounts/emails/password_reset_form.html"
+    email_template_name = "accounts/emails/password_reset_email.html"
+    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    html_email_template_name = "accounts/emails/password_reset_email.html"
+    success_url = reverse_lazy("password_reset_done")
 
+
+class NeonPasswordResetDoneView(auth_views.PasswordResetDoneView):
+    template_name = "accounts/emails/password_reset_done.html"
+
+
+class NeonPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    """
+    IMPORTANT:
+    - If the token is invalid/expired, Django sets `validlink = False`.
+    - We still render our template, and the template will show the request form instead.
+    """
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("password_reset_complete")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Always provide a request form so invalid links can show "request new link" UI
+        ctx["request_form"] = PasswordResetForm()
+        ctx["request_post_url"] = reverse_lazy("password_reset")
+        return ctx
+
+
+class NeonPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
+    template_name = "accounts/password_reset_complete.html"
 
