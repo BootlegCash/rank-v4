@@ -6,9 +6,21 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.templatetags.static import static
-
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory, MONTHLY_RANKS, _rank_from_xp, TokenTransaction, add_tokens, spend_tokens
+from datetime import date, timedelta
 import calendar as cal_module
 from datetime import datetime, timedelta
+
+
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory
+from .serializers import (
+    ProfileMiniSerializer,
+    ProfileSerializer,
+    FriendRequestSerializer,
+    DailyLogSerializer,
+    PostSerializer,
+    MonthlyRankHistorySerializer,
+)
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -19,12 +31,24 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .serializers import RegisterSerializer
 from .models import Profile, FriendRequest, DailyLog, current_log_date, Post
+
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory
+from .serializers import (
+    ProfileMiniSerializer, ProfileSerializer, FriendRequestSerializer,
+    DailyLogSerializer, PostSerializer, MonthlyRankHistorySerializer,
+)
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory
+from .serializers import (
+    ProfileMiniSerializer, ProfileSerializer, FriendRequestSerializer,
+    DailyLogSerializer, PostSerializer, MonthlyRankHistorySerializer,
+)
 from .serializers import (
     ProfileMiniSerializer,
     ProfileSerializer,
     FriendRequestSerializer,
     DailyLogSerializer,
     PostSerializer,
+    TokenTransactionSerializer,
 )
 
 
@@ -112,7 +136,10 @@ def me(request):
         "display_name": display_name,
         "avatar_url": avatar_url,
         "rank": rank_name,
+        "monthly_rank": profile.monthly_rank,
+        "yearly_rank": profile.yearly_rank,
         "xp": xp,
+        "xp_to_next_level": profile.xp_to_next_level,
         "next_rank_xp": next_rank_xp,
 
         "beer": beer, "floco": floco, "rum": rum,
@@ -128,6 +155,7 @@ def me(request):
         "shotguns": shotguns,
         "snorkels": snorkels,
         "thrown_up": thrown_up,
+        "tokens": profile.tokens,
     }
     return Response(resp, status=status.HTTP_200_OK)
 
@@ -620,3 +648,100 @@ def day_log_detail_api(request, year, month, day):
         return Response({"date": log_date.isoformat(), "log": DailyLogSerializer(daily_log).data})
     except DailyLog.DoesNotExist:
         return Response({"date": log_date.isoformat(), "log": None})
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def rank_history(request):
+    """Returns the user's past monthly rank snapshots — used by the calendar."""
+    mep = _me(request)
+    history = MonthlyRankHistory.objects.filter(profile=mep)
+    serializer = MonthlyRankHistorySerializer(history, many=True)
+    return Response(serializer.data)
+
+def snapshot_monthly_rank(profile: Profile, year: int, month: int):
+    """
+    Call this at the end of each month (via cron/management command).
+    Saves the user's final monthly rank for that month so the calendar can display it.
+    """
+    first = date(year, month, 1)
+    if month == 12:
+        last = date(year, 12, 31)
+    else:
+        last = date(year, month + 1, 1) - timedelta(days=1)
+
+    xp = sum(
+        log.calculate_xp()
+        for log in profile.daily_logs.filter(date__gte=first, date__lte=last)
+    )
+    rank = _rank_from_xp(int(xp), MONTHLY_RANKS)
+
+    MonthlyRankHistory.objects.update_or_create(
+        profile=profile,
+        year=year,
+        month=month,
+        defaults={'rank': rank, 'xp': int(xp)},
+    )
+
+
+# -------- Tokens --------
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def token_balance(request):
+    mep = _me(request)
+    return Response({"tokens": mep.tokens})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def earn_tokens(request):
+    mep = _me(request)
+    amount = _safe_int(request.data.get("amount"))
+    reason = (request.data.get("reason") or "").strip()
+    competition_id_ref = request.data.get("competition_id") or None
+
+    if amount <= 0:
+        return Response({"detail": "amount must be a positive integer"}, status=400)
+    if not reason:
+        return Response({"detail": "reason is required"}, status=400)
+
+    txn = add_tokens(mep, amount, reason, competition_id_ref=competition_id_ref)
+    return Response({
+        "tokens": mep.tokens,
+        "transaction": TokenTransactionSerializer(txn).data,
+    }, status=201)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def spend_tokens_api(request):
+    mep = _me(request)
+    amount = _safe_int(request.data.get("amount"))
+    reason = (request.data.get("reason") or "").strip()
+    competition_id_ref = request.data.get("competition_id") or None
+
+    if amount <= 0:
+        return Response({"detail": "amount must be a positive integer"}, status=400)
+    if not reason:
+        return Response({"detail": "reason is required"}, status=400)
+    if mep.tokens < amount:
+        return Response({"detail": "insufficient tokens", "tokens": mep.tokens}, status=400)
+
+    txn = spend_tokens(mep, amount, reason, competition_id_ref=competition_id_ref)
+    return Response({
+        "tokens": mep.tokens,
+        "transaction": TokenTransactionSerializer(txn).data,
+    }, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def token_history(request):
+    mep = _me(request)
+    qs = mep.token_transactions.all()[:50]
+    return Response({
+        "tokens": mep.tokens,
+        "history": TokenTransactionSerializer(qs, many=True).data,
+    })
