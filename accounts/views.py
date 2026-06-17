@@ -524,3 +524,293 @@ class NeonPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
 class NeonPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
     template_name = "accounts/password_reset_complete.html"
 
+
+# ─────────────────────────────────────────────
+# COIN FLIP GAME (session-based mock)
+# ─────────────────────────────────────────────
+
+TOKEN_THRESHOLDS = [
+    (3,  1),
+    (6,  2),
+    (10, 4),
+    (15, 7),
+]
+
+COIN_SHOP_ITEMS = [
+    {"key": "force_shot",        "name": "Force Shot",        "cost": 3, "desc": "Force a friend to take a shot",             "needs_target": True},
+    {"key": "streak_breaker",    "name": "Streak Breaker",    "cost": 5, "desc": "Reset a friend's win streak to 0",          "needs_target": True},
+    {"key": "double_punishment", "name": "Double Punishment", "cost": 4, "desc": "Friend's next loss = 2 shots instead of 1", "needs_target": True},
+    {"key": "shield",            "name": "Shield",            "cost": 6, "desc": "Block your next shot penalty",              "needs_target": False},
+    {"key": "token_heist",       "name": "Token Heist",       "cost": 8, "desc": "Steal 2 tokens from a friend",              "needs_target": True},
+]
+
+DEFAULT_SIM_FRIENDS = ["Jake", "Trey", "Maddie", "Soph"]
+
+
+def _init_game(session):
+    if "coin_game" not in session:
+        friends = []
+        for name in DEFAULT_SIM_FRIENDS:
+            friends.append({
+                "name": name,
+                "tokens": random.randint(3, 12),
+                "streak": random.randint(0, 4),
+                "shots_owed": 0,
+                "double_punishment": False,
+                "bs_tendency": round(random.uniform(0.05, 0.30), 2),
+            })
+        session["coin_game"] = {
+            "tokens": 5,
+            "lifetime_earned": 5,
+            "lifetime_spent": 0,
+            "total_flips": 0,
+            "wins": 0,
+            "losses": 0,
+            "streak": 0,
+            "best_streak": 0,
+            "pending_shots": 0,
+            "confirmed_shots": 0,
+            "disputed_shots": 0,
+            "shot_sources": "",
+            "has_shield": False,
+            "double_punishment": False,
+            "challenges_won": 0,
+            "challenges_lost": 0,
+            "total_drinks": 0,
+            "friends": friends,
+        }
+    return session["coin_game"]
+
+
+def _streak_multiplier(streak):
+    if streak >= 5:
+        return 4
+    elif streak >= 3:
+        return 3
+    return 1
+
+
+def _tokens_for_drinks(count):
+    earned = 0
+    for threshold, tokens in TOKEN_THRESHOLDS:
+        if count >= threshold:
+            earned = tokens
+    return earned
+
+
+def _do_flip(game, bet):
+    game["tokens"] -= bet
+    game["lifetime_spent"] += bet
+    game["total_flips"] += 1
+
+    result = random.choice(["heads", "tails"])
+    call = random.choice(["heads", "tails"])
+    won = result == call
+    shielded = False
+    double = False
+    multiplier = 1
+
+    if won:
+        multiplier = _streak_multiplier(game["streak"])
+        payout = bet * 2 * multiplier
+        game["tokens"] += payout
+        game["lifetime_earned"] += payout
+        game["wins"] += 1
+        game["streak"] += 1
+        game["best_streak"] = max(game["streak"], game["best_streak"])
+        net = payout - bet
+    else:
+        game["losses"] += 1
+        game["streak"] = 0
+        net = -bet
+
+        if game["has_shield"]:
+            game["has_shield"] = False
+            shielded = True
+        else:
+            shot_count = 2 if game["double_punishment"] else 1
+            double = game["double_punishment"]
+            game["pending_shots"] += shot_count
+            sources = []
+            if game["shot_sources"]:
+                sources = game["shot_sources"].split(", ")
+            sources.append(f"{shot_count} from flip")
+            game["shot_sources"] = ", ".join(sources)
+            game["double_punishment"] = False
+
+    return {
+        "call": call,
+        "result": result,
+        "won": won,
+        "shielded": shielded,
+        "double": double,
+        "multiplier": multiplier,
+        "net": net if won else 0,
+        "bet": bet,
+    }
+
+
+def _run_witnesses(game):
+    friends = game["friends"]
+    results = []
+    bs_count = 0
+    for f in friends:
+        called_bs = random.random() < f["bs_tendency"]
+        results.append({"name": f["name"], "bs": called_bs})
+        if called_bs:
+            bs_count += 1
+    penalty = bs_count >= 2
+    if penalty:
+        game["pending_shots"] += 1
+        game["disputed_shots"] += 1
+        if game["shot_sources"]:
+            game["shot_sources"] += ", 1 from BS penalty"
+        else:
+            game["shot_sources"] = "1 from BS penalty"
+    return results, penalty
+
+
+@login_required
+def coin_flip(request):
+    game = _init_game(request.session)
+    last_result = None
+    challenge_result = None
+    witness_results = None
+    bs_penalty = False
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+
+        if action == "flip_1" and game["tokens"] >= 1 and game["pending_shots"] == 0:
+            last_result = _do_flip(game, 1)
+
+        elif action == "flip_2" and game["tokens"] >= 2 and game["pending_shots"] == 0:
+            last_result = _do_flip(game, 2)
+
+        elif action == "all_in" and game["tokens"] >= 1 and game["pending_shots"] == 0:
+            last_result = _do_flip(game, game["tokens"])
+
+        elif action == "confirm_shots":
+            count = game["pending_shots"]
+            game["pending_shots"] = 0
+            game["confirmed_shots"] += count
+            game["shot_sources"] = ""
+            witness_results, bs_penalty = _run_witnesses(game)
+
+        elif action == "log_drinks":
+            try:
+                extra = int(request.POST.get("extra_drinks", 0))
+            except (ValueError, TypeError):
+                extra = 0
+            if extra > 0:
+                old_total = game["total_drinks"]
+                game["total_drinks"] += extra
+                old_tokens = _tokens_for_drinks(old_total)
+                new_tokens = _tokens_for_drinks(game["total_drinks"])
+                bonus = new_tokens - old_tokens
+                if bonus > 0:
+                    game["tokens"] += bonus
+                    game["lifetime_earned"] += bonus
+
+        elif action == "challenge" and game["pending_shots"] == 0:
+            target_name = request.POST.get("challenge_target", "")
+            try:
+                stake = int(request.POST.get("challenge_stake", 1))
+            except (ValueError, TypeError):
+                stake = 1
+
+            friend = None
+            for f in game["friends"]:
+                if f["name"] == target_name:
+                    friend = f
+                    break
+
+            if friend and stake >= 1 and stake <= game["tokens"] and stake <= friend["tokens"]:
+                result = random.choice(["heads", "tails"])
+                call = random.choice(["heads", "tails"])
+                won = result == call
+
+                if won:
+                    game["tokens"] += stake
+                    game["lifetime_earned"] += stake
+                    friend["tokens"] -= stake
+                    game["challenges_won"] += 1
+                else:
+                    game["tokens"] -= stake
+                    game["lifetime_spent"] += stake
+                    friend["tokens"] += stake
+                    game["challenges_lost"] += 1
+                    game["pending_shots"] += 1
+                    game["shot_sources"] = "1 from challenge"
+
+                challenge_result = {
+                    "opponent": friend["name"],
+                    "result": result,
+                    "won": won,
+                    "stake": stake,
+                }
+
+        elif action == "shop_buy" and game["pending_shots"] == 0:
+            item_key = request.POST.get("shop_item", "")
+            target_name = request.POST.get("shop_target", "")
+
+            item = None
+            for si in COIN_SHOP_ITEMS:
+                if si["key"] == item_key:
+                    item = si
+                    break
+
+            friend = None
+            for f in game["friends"]:
+                if f["name"] == target_name:
+                    friend = f
+                    break
+
+            if item and game["tokens"] >= item["cost"]:
+                if item["needs_target"] and not friend:
+                    pass
+                else:
+                    game["tokens"] -= item["cost"]
+                    game["lifetime_spent"] += item["cost"]
+
+                    if item_key == "force_shot":
+                        friend["shots_owed"] += 1
+                    elif item_key == "streak_breaker":
+                        friend["streak"] = 0
+                    elif item_key == "double_punishment":
+                        friend["double_punishment"] = True
+                    elif item_key == "shield":
+                        game["has_shield"] = True
+                    elif item_key == "token_heist":
+                        stolen = min(2, friend["tokens"])
+                        friend["tokens"] -= stolen
+                        game["tokens"] += stolen
+                        game["lifetime_earned"] += stolen
+
+        request.session.modified = True
+
+    win_rate = round(game["wins"] / game["total_flips"] * 100) if game["total_flips"] else 0
+
+    context = {
+        "game": {
+            **game,
+            "streak_multiplier": _streak_multiplier(game["streak"]),
+            "win_rate": win_rate,
+        },
+        "game_name": request.user.username,
+        "friends": game["friends"],
+        "shop_items": COIN_SHOP_ITEMS,
+        "last_result": last_result,
+        "challenge_result": challenge_result,
+        "witness_results": witness_results,
+        "bs_penalty": bs_penalty,
+    }
+    return render(request, "accounts/coin_flip.html", context)
+
+
+@login_required
+def coin_flip_reset(request):
+    if "coin_game" in request.session:
+        del request.session["coin_game"]
+    return redirect("coin_flip")
+

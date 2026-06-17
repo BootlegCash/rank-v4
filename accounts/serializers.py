@@ -1,9 +1,11 @@
 # accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, DailyLog, FriendRequest, Post
+from .models import Profile, DailyLog, FriendRequest, Post, MonthlyRankHistory, TokenTransaction
 
-# ---- Mini helpers ----
+
+# ── Mini helpers ──────────────────────────────────────────────────────────────
+
 class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -24,12 +26,13 @@ class ProfileMiniSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---- Main profile ----
+# ── Main profile ──────────────────────────────────────────────────────────────
+
 class ProfileSerializer(serializers.ModelSerializer):
-    user = UserMiniSerializer(read_only=True)
-    total_drinks = serializers.SerializerMethodField()
+    user             = UserMiniSerializer(read_only=True)
+    total_drinks     = serializers.SerializerMethodField()
     total_alcohol_ml = serializers.SerializerMethodField()
-    xp_percentage = serializers.SerializerMethodField()
+    xp_percentage    = serializers.SerializerMethodField()
     xp_to_next_level = serializers.SerializerMethodField()
 
     class Meta:
@@ -39,7 +42,10 @@ class ProfileSerializer(serializers.ModelSerializer):
             "user",
             "display_name",
             "xp",
-            "rank",
+            "tokens",
+            "rank",           # lifetime sub-rank  (e.g. "Bronze 2")
+            "monthly_rank",   # current month rank  (e.g. "Gold")
+            "yearly_rank",    # current year rank   (e.g. "Silver")
             "beer",
             "floco",
             "rum",
@@ -56,7 +62,10 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "xp",
+            "tokens",
             "rank",
+            "monthly_rank",
+            "yearly_rank",
             "total_drinks",
             "total_alcohol_ml",
             "xp_percentage",
@@ -73,7 +82,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         return obj.calculate_alcohol_drank()
 
     def get_xp_percentage(self, obj: Profile) -> int:
-        # model already exposes a property; mirror here so API is stable
         try:
             return int(obj.xp_percentage)
         except Exception:
@@ -83,20 +91,19 @@ class ProfileSerializer(serializers.ModelSerializer):
         return obj.xp_to_next_level
 
 
-# ---- Daily logs ----
-class DailyLogSerializer(serializers.ModelSerializer):
-    # allow partial payloads; default missing values to 0
-    beer = serializers.IntegerField(required=False, default=0, min_value=0)
-    floco = serializers.IntegerField(required=False, default=0, min_value=0)
-    rum = serializers.IntegerField(required=False, default=0, min_value=0)
-    whiskey = serializers.IntegerField(required=False, default=0, min_value=0)
-    vodka = serializers.IntegerField(required=False, default=0, min_value=0)
-    tequila = serializers.IntegerField(required=False, default=0, min_value=0)
-    shotguns = serializers.IntegerField(required=False, default=0, min_value=0)
-    snorkels = serializers.IntegerField(required=False, default=0, min_value=0)
-    thrown_up = serializers.IntegerField(required=False, default=0, min_value=0)
+# ── Daily logs ────────────────────────────────────────────────────────────────
 
-    xp = serializers.IntegerField(read_only=True)
+class DailyLogSerializer(serializers.ModelSerializer):
+    beer      = serializers.IntegerField(required=False, default=0, min_value=0)
+    floco     = serializers.IntegerField(required=False, default=0, min_value=0)
+    rum       = serializers.IntegerField(required=False, default=0, min_value=0)
+    whiskey   = serializers.IntegerField(required=False, default=0, min_value=0)
+    vodka     = serializers.IntegerField(required=False, default=0, min_value=0)
+    tequila   = serializers.IntegerField(required=False, default=0, min_value=0)
+    shotguns  = serializers.IntegerField(required=False, default=0, min_value=0)
+    snorkels  = serializers.IntegerField(required=False, default=0, min_value=0)
+    thrown_up = serializers.IntegerField(required=False, default=0, min_value=0)
+    xp        = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DailyLog
@@ -116,20 +123,30 @@ class DailyLogSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        drink_fields = {
+            "beer", "floco", "rum", "whiskey", "vodka",
+            "tequila", "shotguns", "snorkels", "thrown_up",
+        }
         for k, v in attrs.items():
-            if k in {
-                "beer", "floco", "rum", "whiskey", "vodka",
-                "tequila", "shotguns", "snorkels", "thrown_up",
-            } and v is not None and v < 0:
+            if k in drink_fields and v is not None and v < 0:
                 raise serializers.ValidationError({k: "Must be >= 0"})
         return attrs
 
 
-# ---- Friend requests ----
+# ── Monthly rank history ──────────────────────────────────────────────────────
+
+class MonthlyRankHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MonthlyRankHistory
+        fields = ["year", "month", "rank", "xp"]
+
+
+# ── Friend requests ───────────────────────────────────────────────────────────
+
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = ProfileMiniSerializer(read_only=True)
-    to_user = ProfileMiniSerializer(read_only=True)
-    status = serializers.SerializerMethodField()
+    to_user   = ProfileMiniSerializer(read_only=True)
+    status    = serializers.SerializerMethodField()
 
     class Meta:
         model = FriendRequest
@@ -139,21 +156,15 @@ class FriendRequestSerializer(serializers.ModelSerializer):
     def get_status(self, obj):
         return "accepted" if getattr(obj, "accepted", False) else "pending"
 
-# accounts/serializers.py
-from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import Profile
+
+# ── Register ──────────────────────────────────────────────────────────────────
 
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
-    password1 = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
-    display_name = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        max_length=150
-    )
+    username     = serializers.CharField(max_length=150)
+    email        = serializers.EmailField()
+    password1    = serializers.CharField(write_only=True)
+    password2    = serializers.CharField(write_only=True)
+    display_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
 
     def validate(self, attrs):
         if attrs['password1'] != attrs['password2']:
@@ -165,42 +176,54 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        # pull values
-        username = validated_data['username']
-        email = validated_data['email']
-        password = validated_data['password1']
+        username     = validated_data['username']
+        email        = validated_data['email']
+        password     = validated_data['password1']
+        display_name = validated_data.get('display_name') or username
 
-        # 🔥 IMPORTANT: default display_name if missing/blank
-        display_name = validated_data.get('display_name')
-        if not display_name:
-            display_name = username
-
-        # create user
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
         )
-
-        # create profile with proper display_name
         profile = Profile.objects.create(
             user=user,
             display_name=display_name,
         )
-
         return profile
 
 
+# ── Posts ─────────────────────────────────────────────────────────────────────
+
+# ── Token transactions ───────────────────────────────────────────────────────
+
+class TokenTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TokenTransaction
+        fields = [
+            "id",
+            "type",
+            "amount",
+            "reason",
+            "balance_after",
+            "competition_id_ref",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+# ── Posts ────────────────────────────────────────────────────────────────────
+
 class PostSerializer(serializers.ModelSerializer):
-    user = ProfileMiniSerializer(read_only=True)
+    user       = ProfileMiniSerializer(read_only=True)
     like_count = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
+    is_liked   = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = [
             "id",
-            "user",         # ProfileMiniSerializer
+            "user",
             "content",
             "created_at",
             "like_count",

@@ -42,4 +42,11 @@ urlpatterns = [
   path('calendar/', v.monthly_calendar_api, name='api_monthly_calendar'),
 path('calendar/<int:year>/<int:month>/', v.monthly_calendar_api, name='api_monthly_calendar_ym'),
 path('calendar/<int:year>/<int:month>/<int:day>/', v.day_log_detail_api, name='api_day_log_detail'),
+path('rank-history/', v.rank_history, name='api_rank_history'),
+
+    # Tokens
+    path('tokens/', v.token_balance, name='api_token_balance'),
+    path('tokens/earn/', v.earn_tokens, name='api_earn_tokens'),
+    path('tokens/spend/', v.spend_tokens_api, name='api_spend_tokens'),
+    path('tokens/history/', v.token_history, name='api_token_history'),
 ]

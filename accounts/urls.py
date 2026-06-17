@@ -30,6 +30,8 @@ urlpatterns = [
     path('calendar/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/', views.monthly_calendar, name='monthly_calendar'),
     path('calendar/<int:year>/<int:month>/<int:day>/', views.day_log_detail, name='day_log_detail'),
+    path('coin-flip/', views.coin_flip, name='coin_flip'),
+    path('coin-flip/reset/', views.coin_flip_reset, name='coin_flip_reset'),
 
     # API namespace for mobile
     path('api/', include('accounts.api_urls')),

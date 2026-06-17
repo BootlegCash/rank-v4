@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+
+{% block title %}Coin Flip - After Hours{% endblock %}
+
+{% block extra_css %}
+<style>
+    .flip-container { max-width: 500px; margin: 0 auto; padding: 1rem; }
+
+    /* Coin */
+    .coin-wrapper { text-align: center; margin: 1.5rem 0; }
+    .coin {
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        margin: 0 auto;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; font-weight: 700;
+        background: linear-gradient(135deg, #ffd700, #ffaa00);
+        color: #1a1a2e;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        transition: transform 0.1s;
+    }
+    .coin.spinning {
+        animation: spin-coin 0.15s linear infinite;
+    }
+    .coin.won { box-shadow: 0 0 40px rgba(0, 254, 252, 0.8); }
+    .coin.lost { box-shadow: 0 0 40px rgba(255, 20, 147, 0.8); }
+
+    @keyframes spin-coin {
+        0%   { transform: rotateY(0deg); }
+        100% { transform: rotateY(360deg); }
+    }
+
+    /* Status bar */
+    .status-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .status-item {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(0,254,252,0.15);
+        border-radius: 12px;
+        padding: 0.75rem;
+        text-align: center;
+    }
+    .status-item .label { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+    .status-item .value { font-size: 1.4rem; font-weight: 700; }
+    .status-item .value.cyan { color: var(--neon-cyan); }
+    .status-item .value.pink { color: var(--hot-pink); }
+    .status-item .value.gold { color: #ffd700; }
+
+    /* Streak indicator */
+    .streak-bar {
+        display: flex; gap: 4px; justify-content: center; margin: 0.5rem 0;
+    }
+    .streak-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        transition: all 0.3s;
+    }
+    .streak-dot.filled { background: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan); }
+    .streak-dot.milestone { border: 2px solid #ffd700; }
+
+    /* Multiplier badge */
+    .multiplier-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #ffd700, #ff8c00);
+        color: #1a1a2e;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        margin-left: 0.5rem;
+    }
+
+    /* Action buttons */
+    .action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin: 1rem 0;
+    }
+    .action-btn {
+        background: rgba(255,255,255,0.05);
+        border: 2px solid rgba(0,254,252,0.3);
+        color: var(--neon-cyan);
+        padding: 1rem;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    .action-btn:hover:not(:disabled) {
+        background: rgba(0,254,252,0.1);
+        box-shadow: 0 0 15px rgba(0,254,252,0.3);
+        transform: translateY(-2px);
+    }
+    .action-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    .action-btn.pink { border-color: var(--hot-pink); color: var(--hot-pink); }
+    .action-btn.pink:hover:not(:disabled) {
+        background: rgba(255,20,147,0.1);
+        box-shadow: 0 0 15px rgba(255,20,147,0.3);
+    }
+    .action-btn.gold { border-color: #ffd700; color: #ffd700; }
+    .action-btn.gold:hover:not(:disabled) {
+        background: rgba(255,215,0,0.1);
+        box-shadow: 0 0 15px rgba(255,215,0,0.3);
+    }
+    .action-btn .sub { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.3rem; font-weight: 300; }
+    .action-btn.full { grid-column: 1 / -1; }
+
+    /* Result flash */
+    .result-banner {
+        text-align: center;
+        padding: 1rem;
+        border-radius: 12px;
+        margin: 1rem 0;
+        font-weight: 700;
+        font-size: 1.1rem;
+        animation: flash-in 0.3s ease;
+        display: none;
+    }
+    .result-banner.win {
+        background: rgba(0,254,252,0.1);
+        border: 1px solid var(--neon-cyan);
+        color: var(--neon-cyan);
+        display: block;
+    }
+    .result-banner.loss {
+        background: rgba(255,20,147,0.1);
+        border: 1px solid var(--hot-pink);
+        color: var(--hot-pink);
+        display: block;
+    }
+    .result-banner.shield {
+        background: rgba(255,215,0,0.1);
+        border: 1px solid #ffd700;
+        color: #ffd700;
+        display: block;
+    }
+    @keyframes flash-in {
+        0% { opacity: 0; transform: scale(0.9); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Shot enforcement overlay */
+    .shot-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.92);
+        z-index: 200;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column;
+        padding: 2rem;
+    }
+    .shot-overlay h2 { color: var(--hot-pink); font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .shot-overlay .shot-count { font-size: 4rem; font-weight: 700; color: var(--hot-pink); margin: 1rem 0; }
+    .shot-overlay .shot-source { color: rgba(255,255,255,0.5); margin-bottom: 1.5rem; }
+    .shot-overlay .confirm-btn {
+        background: linear-gradient(135deg, var(--hot-pink), #ff4500);
+        color: white;
+        border: none;
+        padding: 1rem 3rem;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: 'Space Grotesk', sans-serif;
+        transition: all 0.3s;
+    }
+    .shot-overlay .confirm-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,20,147,0.5); }
+
+    /* Witness results */
+    .witness-results {
+        margin-top: 1.5rem;
+        width: 100%;
+        max-width: 300px;
+    }
+    .witness-vote {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        animation: slide-in 0.3s ease;
+    }
+    .witness-vote .name { color: rgba(255,255,255,0.7); }
+    .witness-vote .verdict.ok { color: var(--neon-cyan); }
+    .witness-vote .verdict.bs { color: var(--hot-pink); font-weight: 700; }
+    @keyframes slide-in {
+        0% { opacity: 0; transform: translateX(-10px); }
+        100% { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Shop modal */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.85);
+        z-index: 150;
+        display: none; align-items: center; justify-content: center;
+        padding: 1rem;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+        background: #0a0f1f;
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 420px;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    .modal-content h3 { text-align: center; margin-bottom: 1rem; }
+
+    /* Shop item */
+    .shop-item {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(0,254,252,0.15);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .shop-item:hover { border-color: var(--neon-cyan); background: rgba(0,254,252,0.05); }
+    .shop-item.cant-afford { opacity: 0.4; cursor: not-allowed; }
+    .shop-item .item-header { display: flex; justify-content: space-between; align-items: center; }
+    .shop-item .item-name { font-weight: 700; }
+    .shop-item .item-cost { color: #ffd700; font-weight: 700; }
+    .shop-item .item-desc { font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 0.3rem; }
+
+    /* Friend picker */
+    .friend-pick {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        margin: 0.4rem 0;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .friend-pick:hover { border-color: var(--neon-cyan); background: rgba(0,254,252,0.05); }
+    .friend-pick .friend-info { color: rgba(255,255,255,0.5); font-size: 0.8rem; }
+
+    /* Challenge */
+    .challenge-result {
+        text-align: center;
+        padding: 1.5rem;
+    }
+    .vs-text { font-size: 2rem; font-weight: 700; color: rgba(255,255,255,0.3); margin: 0.5rem 0; }
+
+    /* Stats panel */
+    .stats-panel { padding: 0.5rem 0; }
+    .stat-row {
+        display: flex; justify-content: space-between;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-row .stat-label { color: rgba(255,255,255,0.5); }
+    .stat-row .stat-val { font-weight: 700; }
+
+    /* Friends panel in main view */
+    .friends-bar {
+        display: flex; gap: 0.5rem; overflow-x: auto;
+        padding: 0.5rem 0; margin-bottom: 1rem;
+    }
+    .friend-chip {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 20px;
+        padding: 0.4rem 0.8rem;
+        white-space: nowrap;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.6);
+    }
+    .friend-chip .f-tokens { color: #ffd700; margin-left: 0.3rem; }
+
+    /* Log more drinks */
+    .drink-input-row {
+        display: flex; gap: 0.5rem; align-items: center; margin: 1rem 0;
+    }
+    .drink-input-row input {
+        width: 80px; text-align: center;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(0,254,252,0.3);
+        border-radius: 8px;
+        padding: 0.6rem;
+        color: white;
+        font-size: 1.1rem;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* Shield indicator */
+    .shield-indicator {
+        display: inline-block;
+        background: rgba(255,215,0,0.15);
+        border: 1px solid #ffd700;
+        color: #ffd700;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-left: 0.3rem;
+    }
+
+    /* Double punishment warning */
+    .dp-warning {
+        background: rgba(255,20,147,0.1);
+        border: 1px solid rgba(255,20,147,0.3);
+        border-radius: 8px;
+        padding: 0.5rem;
+        text-align: center;
+        color: var(--hot-pink);
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flip-container" id="app">
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="label">Tokens</div>
+            <div class="value gold" id="token-count">{{ game.tokens }}</div>
+        </div>
+        <div class="status-item">
+            <div class="label">Streak</div>
+            <div class="value cyan" id="streak-count">{{ game.streak }}
+                {% if game.streak_multiplier > 1 %}
+                <span class="multiplier-badge">{{ game.streak_multiplier }}x</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="status-item">
+            <div class="label">Shots Owed</div>
+            <div class="value pink" id="shots-count">{{ game.pending_shots }}</div>
+        </div>
+    </div>
+
+    {% if game.has_shield %}
+    <div style="text-align:center;margin-bottom:0.5rem;">
+        <span class="shield-indicator">SHIELD ACTIVE</span>
+    </div>
+    {% endif %}
+
+    {% if game.double_punishment %}
+    <div class="dp-warning">NEXT LOSS = 2 SHOTS</div>
+    {% endif %}
+
+    <!-- Streak dots -->
+    <div class="streak-bar">
+        {% for i in "12345" %}
+        <div class="streak-dot {% if forloop.counter <= game.streak %}filled{% endif %} {% if forloop.counter == 3 or forloop.counter == 5 %}milestone{% endif %}"></div>
+        {% endfor %}
+    </div>
+
+    <!-- Coin -->
+    <div class="coin-wrapper">
+        <div class="coin" id="coin">?</div>
+    </div>
+
+    <!-- Result banner -->
+    <div class="result-banner" id="result-banner"></div>
+
+    <!-- Action buttons -->
+    <div class="action-grid">
+        <form method="post" style="display:contents">
+            {% csrf_token %}
+            <button type="submit" name="action" value="flip_1" class="action-btn" {% if game.tokens < 1 or game.pending_shots > 0 %}disabled{% endif %}>
+                FLIP<div class="sub">1 token</div>
+            </button>
+            <button type="submit" name="action" value="flip_2" class="action-btn" {% if game.tokens < 2 or game.pending_shots > 0 %}disabled{% endif %}>
+                DOUBLE<div class="sub">2 tokens</div>
+            </button>
+            <button type="submit" name="action" value="all_in" class="action-btn gold full" {% if game.tokens < 1 or game.pending_shots > 0 %}disabled{% endif %}>
+                ALL IN ({{ game.tokens }} tokens)<div class="sub">everything on one flip</div>
+            </button>
+        </form>
+    </div>
+
+    <!-- Secondary actions -->
+    <div class="action-grid">
+        <button class="action-btn pink" onclick="openModal('challenge-modal')" {% if game.tokens < 1 or game.pending_shots > 0 %}disabled{% endif %}>
+            CHALLENGE<div class="sub">vs a friend</div>
+        </button>
+        <button class="action-btn" onclick="openModal('shop-modal')" {% if game.tokens < 1 or game.pending_shots > 0 %}disabled{% endif %}>
+            SHOP<div class="sub">spend tokens</div>
+        </button>
+        <button class="action-btn" onclick="openModal('stats-modal')">
+            STATS<div class="sub">your record</div>
+        </button>
+        <button class="action-btn" onclick="openModal('drinks-modal')">
+            LOG DRINKS<div class="sub">earn tokens</div>
+        </button>
+    </div>
+
+    <!-- Friends bar -->
+    <div class="friends-bar">
+        {% for f in friends %}
+        <div class="friend-chip">{{ f.name }} <span class="f-tokens">{{ f.tokens }}t</span></div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- SHOT ENFORCEMENT OVERLAY -->
+{% if game.pending_shots > 0 %}
+<div class="shot-overlay" id="shot-overlay">
+    <h2>TAKE YOUR SHOTS</h2>
+    <div class="shot-count">{{ game.pending_shots }}</div>
+    <div class="shot-source">{{ game.shot_sources }}</div>
+    <p style="color:rgba(255,255,255,0.4);margin-bottom:1.5rem;text-align:center;max-width:300px;">
+        You can't flip, shop, or challenge until you drink and confirm.
+        Your friends will be asked to verify.
+    </p>
+    <form method="post" id="confirm-shot-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm_shots">
+        <button type="submit" class="confirm-btn">I TOOK MY SHOTS</button>
+    </form>
+
+    {% if witness_results %}
+    <div class="witness-results">
+        <h3 style="text-align:center;font-size:0.9rem;color:rgba(255,255,255,0.4);margin:1rem 0 0.5rem;">WITNESS VOTES</h3>
+        {% for w in witness_results %}
+        <div class="witness-vote" style="animation-delay: {{ forloop.counter0 }}00ms">
+            <span class="name">{{ w.name }}</span>
+            <span class="verdict {% if w.bs %}bs{% else %}ok{% endif %}">{% if w.bs %}CALLED BS{% else %}Confirmed{% endif %}</span>
+        </div>
+        {% endfor %}
+        {% if bs_penalty %}
+        <div style="text-align:center;margin-top:1rem;color:var(--hot-pink);font-weight:700;">
+            BS DETECTED! +1 penalty shot added.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- SHOP MODAL -->
+<div class="modal-overlay" id="shop-modal">
+    <div class="modal-content">
+        <h3 class="gradient-text">TOKEN SHOP</h3>
+        <form method="post">
+            {% csrf_token %}
+            {% for item in shop_items %}
+            <div class="shop-item {% if game.tokens < item.cost %}cant-afford{% endif %}"
+                 onclick="{% if game.tokens >= item.cost %}selectShopItem('{{ item.key }}', {{ item.needs_target|yesno:'true,false' }}){% endif %}">
+                <div class="item-header">
+                    <span class="item-name">{{ item.name }}</span>
+                    <span class="item-cost">{{ item.cost }} tokens</span>
+                </div>
+                <div class="item-desc">{{ item.desc }}</div>
+            </div>
+            {% endfor %}
+
+            <input type="hidden" name="action" value="shop_buy">
+            <input type="hidden" name="shop_item" id="shop-item-input" value="">
+            <input type="hidden" name="shop_target" id="shop-target-input" value="">
+
+            <!-- Friend picker (hidden until needed) -->
+            <div id="friend-picker" style="display:none;margin-top:1rem;">
+                <h3 style="font-size:0.9rem;color:rgba(255,255,255,0.5);margin-bottom:0.5rem;">TARGET WHO?</h3>
+                {% for f in friends %}
+                <div class="friend-pick" onclick="pickShopTarget('{{ f.name }}')">
+                    <span>{{ f.name }}</span>
+                    <span class="friend-info">{{ f.tokens }} tokens | streak: {{ f.streak }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </form>
+        <button class="neon-btn small" onclick="closeModal('shop-modal')" style="width:100%;margin-top:1rem;">CLOSE</button>
+    </div>
+</div>
+
+<!-- CHALLENGE MODAL -->
+<div class="modal-overlay" id="challenge-modal">
+    <div class="modal-content">
+        <h3 class="gradient-text">CHALLENGE A FRIEND</h3>
+        <p style="color:rgba(255,255,255,0.5);text-align:center;font-size:0.85rem;margin-bottom:1rem;">
+            Both stake tokens. One flip. Loser takes a shot.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="challenge">
+            <input type="hidden" name="challenge_target" id="challenge-target-input" value="">
+
+            {% for f in friends %}
+            <div class="friend-pick" onclick="pickChallengeTarget('{{ f.name }}', {{ f.tokens }})">
+                <span>{{ f.name }}</span>
+                <span class="friend-info">{{ f.tokens }} tokens</span>
+            </div>
+            {% endfor %}
+
+            <div id="challenge-stake-section" style="display:none;margin-top:1rem;">
+                <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:0.85rem;margin-bottom:0.5rem;">
+                    STAKE (max: <span id="challenge-max">0</span> tokens)
+                </div>
+                <div class="drink-input-row" style="justify-content:center;">
+                    <input type="number" name="challenge_stake" id="challenge-stake" min="1" value="1" style="width:100px;">
+                    <button type="submit" class="neon-btn small pink">SEND IT</button>
+                </div>
+            </div>
+        </form>
+        <button class="neon-btn small" onclick="closeModal('challenge-modal')" style="width:100%;margin-top:1rem;">CLOSE</button>
+    </div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-overlay" id="stats-modal">
+    <div class="modal-content">
+        <h3 class="gradient-text">YOUR STATS</h3>
+        <div class="stats-panel">
+            <div class="stat-row"><span class="stat-label">Tokens</span><span class="stat-val" style="color:#ffd700;">{{ game.tokens }}</span></div>
+            <div class="stat-row"><span class="stat-label">Lifetime Earned</span><span class="stat-val">{{ game.lifetime_earned }}</span></div>
+            <div class="stat-row"><span class="stat-label">Lifetime Spent</span><span class="stat-val">{{ game.lifetime_spent }}</span></div>
+            <div class="stat-row"><span class="stat-label">Total Flips</span><span class="stat-val">{{ game.total_flips }}</span></div>
+            <div class="stat-row"><span class="stat-label">Wins</span><span class="stat-val" style="color:var(--neon-cyan);">{{ game.wins }}</span></div>
+            <div class="stat-row"><span class="stat-label">Losses</span><span class="stat-val" style="color:var(--hot-pink);">{{ game.losses }}</span></div>
+            <div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-val">{{ game.win_rate }}%</span></div>
+            <div class="stat-row"><span class="stat-label">Current Streak</span><span class="stat-val" style="color:var(--neon-cyan);">{{ game.streak }}</span></div>
+            <div class="stat-row"><span class="stat-label">Best Streak</span><span class="stat-val">{{ game.best_streak }}</span></div>
+            <div class="stat-row"><span class="stat-label">Multiplier</span><span class="stat-val" style="color:#ffd700;">{{ game.streak_multiplier }}x</span></div>
+            <div class="stat-row"><span class="stat-label">Challenges Won</span><span class="stat-val">{{ game.challenges_won }}</span></div>
+            <div class="stat-row"><span class="stat-label">Challenges Lost</span><span class="stat-val">{{ game.challenges_lost }}</span></div>
+            <div class="stat-row"><span class="stat-label">Shots Confirmed</span><span class="stat-val">{{ game.confirmed_shots }}</span></div>
+            <div class="stat-row"><span class="stat-label">Times Caught BS</span><span class="stat-val" style="color:var(--hot-pink);">{{ game.disputed_shots }}</span></div>
+        </div>
+        <button class="neon-btn small" onclick="closeModal('stats-modal')" style="width:100%;margin-top:1rem;">CLOSE</button>
+    </div>
+</div>
+
+<!-- DRINKS MODAL -->
+<div class="modal-overlay" id="drinks-modal">
+    <div class="modal-content">
+        <h3 class="gradient-text">LOG MORE DRINKS</h3>
+        <p style="color:rgba(255,255,255,0.5);text-align:center;font-size:0.85rem;margin-bottom:1rem;">
+            Earn tokens: 3 drinks = 1t, 6 = 2t, 10 = 4t, 15 = 7t
+        </p>
+        <p style="text-align:center;color:rgba(255,255,255,0.4);font-size:0.8rem;">
+            Total drinks tonight: <strong style="color:white;">{{ game.total_drinks }}</strong>
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="log_drinks">
+            <div class="drink-input-row" style="justify-content:center;">
+                <input type="number" name="extra_drinks" min="1" value="1" placeholder="#">
+                <button type="submit" class="neon-btn small">LOG</button>
+            </div>
+        </form>
+        <button class="neon-btn small" onclick="closeModal('drinks-modal')" style="width:100%;margin-top:1rem;">CLOSE</button>
+    </div>
+</div>
+
+<!-- CHALLENGE RESULT (shown after a challenge) -->
+{% if challenge_result %}
+<div class="modal-overlay active" id="challenge-result-modal">
+    <div class="modal-content">
+        <div class="challenge-result">
+            <div style="font-size:1.1rem;color:rgba(255,255,255,0.5);">{{ game_name }}</div>
+            <div class="vs-text">VS</div>
+            <div style="font-size:1.1rem;color:rgba(255,255,255,0.5);">{{ challenge_result.opponent }}</div>
+            <div style="margin:1.5rem 0;">
+                <div class="coin {% if challenge_result.won %}won{% else %}lost{% endif %}" style="width:80px;height:80px;font-size:1.5rem;">
+                    {{ challenge_result.result|upper }}
+                </div>
+            </div>
+            {% if challenge_result.won %}
+            <div style="color:var(--neon-cyan);font-size:1.3rem;font-weight:700;">YOU WIN!</div>
+            <div style="color:#ffd700;margin-top:0.3rem;">+{{ challenge_result.stake }} tokens</div>
+            {% else %}
+            <div style="color:var(--hot-pink);font-size:1.3rem;font-weight:700;">YOU LOSE</div>
+            <div style="color:var(--hot-pink);margin-top:0.3rem;">-{{ challenge_result.stake }} tokens + take a shot</div>
+            {% endif %}
+        </div>
+        <button class="neon-btn small" onclick="closeModal('challenge-result-modal')" style="width:100%;">OK</button>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Shop
+let currentShopItem = null;
+function selectShopItem(key, needsTarget) {
+    document.getElementById('shop-item-input').value = key;
+    if (needsTarget) {
+        document.getElementById('friend-picker').style.display = 'block';
+    } else {
+        document.getElementById('shop-target-input').value = '';
+        document.getElementById('shop-item-input').closest('form').submit();
+    }
+}
+function pickShopTarget(name) {
+    document.getElementById('shop-target-input').value = name;
+    document.getElementById('shop-item-input').closest('form').submit();
+}
+
+// Challenge
+function pickChallengeTarget(name, theirTokens) {
+    document.getElementById('challenge-target-input').value = name;
+    let maxStake = Math.min({{ game.tokens }}, theirTokens);
+    document.getElementById('challenge-max').textContent = maxStake;
+    document.getElementById('challenge-stake').max = maxStake;
+    document.getElementById('challenge-stake-section').style.display = 'block';
+}
+
+// Coin animation on flip result
+{% if last_result %}
+(function() {
+    const coin = document.getElementById('coin');
+    const banner = document.getElementById('result-banner');
+    coin.classList.add('spinning');
+    setTimeout(() => {
+        coin.classList.remove('spinning');
+        coin.textContent = '{{ last_result.result|upper }}';
+        coin.classList.add('{% if last_result.won %}won{% else %}lost{% endif %}');
+        {% if last_result.won %}
+        banner.className = 'result-banner win';
+        banner.innerHTML = 'WIN! +{{ last_result.net }} tokens{% if last_result.multiplier > 1 %} ({{ last_result.multiplier }}x streak!){% endif %}';
+        {% elif last_result.shielded %}
+        banner.className = 'result-banner shield';
+        banner.innerHTML = 'LOSS... but SHIELD saved you!';
+        {% else %}
+        banner.className = 'result-banner loss';
+        banner.innerHTML = 'LOSS. Take {% if last_result.double %}2 shots{% else %}a shot{% endif %}.';
+        {% endif %}
+    }, 900);
+})();
+{% endif %}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', (e) => {
+        if (e.target === m) m.classList.remove('active');
+    });
+});
+</script>
+{% endblock %}

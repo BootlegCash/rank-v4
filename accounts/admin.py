@@ -6,10 +6,21 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
 
-from .models import Profile, DailyLog
+from .models import Profile, DailyLog, TokenTransaction
 
 
 DRINK_FIELDS = ["beer", "floco", "rum", "whiskey", "vodka", "tequila"]
+
+
+class TokenTransactionInline(admin.TabularInline):
+    model = TokenTransaction
+    extra = 0
+    fields = ("created_at", "type", "amount", "reason", "balance_after", "competition_id_ref")
+    readonly_fields = fields
+    ordering = ("-created_at",)
+    show_change_link = False
+    can_delete = False
+    max_num = 10
 
 
 class DailyLogInline(admin.TabularInline):
@@ -39,12 +50,13 @@ class ProfileAdmin(admin.ModelAdmin):
         "shotguns",
         "snorkels",
         "thrown_up",
+        "tokens",
         "view_stats",
     )
     search_fields = ("user__username", "display_name", "rank")
     list_filter = ("rank",)
     ordering = ("-xp",)
-    inlines = [DailyLogInline]
+    inlines = [DailyLogInline, TokenTransactionInline]
 
     readonly_fields = (
         "xp",
@@ -353,3 +365,12 @@ class CustomUserAdmin(UserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+
+@admin.register(TokenTransaction)
+class TokenTransactionAdmin(admin.ModelAdmin):
+    list_display = ("profile", "type", "amount", "reason", "balance_after", "created_at")
+    list_filter = ("type", "created_at")
+    search_fields = ("profile__user__username", "reason")
+    readonly_fields = ("profile", "type", "amount", "reason", "balance_after", "competition_id_ref", "created_at")
+    ordering = ("-created_at",)

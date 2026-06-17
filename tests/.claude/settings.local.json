@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python coin_flip_mock.py)",
+      "Bash(python manage.py check)",
+      "Bash(pip install *)",
+      "Bash(python manage.py runserver 8000)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp"
+    ]
+  }
+}
