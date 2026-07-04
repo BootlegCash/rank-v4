@@ -3,6 +3,7 @@ from pathlib import Path
 import dj_database_url
 from datetime import timedelta
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -157,17 +158,33 @@ LOGGING = {
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }
 
-# Email (SendGrid)
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.sendgrid.net"
+# Email (Resend SMTP)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+RESEND_FROM_EMAIL = os.getenv(
+    "RESEND_FROM_EMAIL",
+    "After Hours <no-reply@reply.afterhoursranked.com>",
+)
+
+if IS_PRODUCTION and not RESEND_API_KEY:
+    raise ImproperlyConfigured(
+        "RESEND_API_KEY must be configured in the production environment."
+    )
+
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if RESEND_API_KEY
+    else "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = "smtp.resend.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = "resend"
+EMAIL_HOST_PASSWORD = RESEND_API_KEY
+EMAIL_TIMEOUT = 15
 
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
-
-DEFAULT_FROM_EMAIL = "no-reply@rankeddrinking.com"
-SERVER_EMAIL = "no-reply@rankeddrinking.com"
+DEFAULT_FROM_EMAIL = RESEND_FROM_EMAIL
+SERVER_EMAIL = RESEND_FROM_EMAIL
 
 # Helps Django build absolute links in emails in some cases
 SITE_DOMAIN = os.getenv(

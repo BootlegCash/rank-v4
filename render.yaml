@@ -13,3 +13,7 @@ services:
         value: "False"
       - key: SECRET_KEY
         generateValue: true
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "After Hours <no-reply@reply.afterhoursranked.com>"
