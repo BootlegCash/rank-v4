@@ -9,6 +9,7 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')  # change on production
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+IS_PRODUCTION = os.environ.get('DJANGO_ENV') == 'production'
 
 # ✅ Add your render URL and localhost
 ALLOWED_HOSTS = [
@@ -94,7 +95,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # ----------------- INTERNATIONALIZATION -----------------
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Phoenix'
 USE_I18N = True
 USE_TZ = True
 
@@ -122,8 +123,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'Default_Authentication_Classes': [
-        'rest_framework.authenticatiion.TokenAuthentication',]
 }
 
 SIMPLE_JWT = {
@@ -134,7 +133,18 @@ SIMPLE_JWT = {
 }
 
 # ----------------- CORS -----------------
-CORS_ALLOW_ALL_ORIGINS = True
+# Native iOS/Android requests are not governed by browser CORS. These origins
+# are only for the hosted site and Flutter web builds.
+CORS_ALLOWED_ORIGINS = [
+    "https://ranked-0xtx.onrender.com",
+    "https://afterhoursranked.com",
+    "https://www.afterhoursranked.com",
+]
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^http://localhost:\d+$",
+        r"^http://127\.0\.0\.1:\d+$",
+    ]
 
 
 # ----------------- LOGGING (optional debug) -----------------
@@ -160,12 +170,26 @@ DEFAULT_FROM_EMAIL = "no-reply@rankeddrinking.com"
 SERVER_EMAIL = "no-reply@rankeddrinking.com"
 
 # Helps Django build absolute links in emails in some cases
-SITE_DOMAIN = os.getenv("SITE_DOMAIN", "127.0.0.1:8000")
+SITE_DOMAIN = os.getenv(
+    "SITE_DOMAIN",
+    "afterhoursranked.com" if IS_PRODUCTION else "127.0.0.1:8000",
+)
 
 
 # Render / reverse proxy HTTPS fix
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
+
+# Production transport/cookie hardening. Render terminates TLS and forwards
+# the original protocol through SECURE_PROXY_SSL_HEADER above.
+SECURE_SSL_REDIRECT = IS_PRODUCTION
+SESSION_COOKIE_SECURE = IS_PRODUCTION
+CSRF_COOKIE_SECURE = IS_PRODUCTION
+SECURE_HSTS_SECONDS = 31536000 if IS_PRODUCTION else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PRODUCTION
+SECURE_HSTS_PRELOAD = IS_PRODUCTION
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ranked-0xtx.onrender.com",

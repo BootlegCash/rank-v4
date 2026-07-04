@@ -7,5 +7,9 @@ services:
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: myapp.settings
+      - key: DJANGO_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
       - key: SECRET_KEY
         generateValue: true
