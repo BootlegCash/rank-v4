@@ -6,7 +6,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.templatetags.static import static
-from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory, MONTHLY_RANKS, _rank_from_xp, TokenTransaction, add_tokens, spend_tokens
+from .models import Profile, FriendRequest, DailyLog, current_log_date, Post, MonthlyRankHistory, MONTHLY_RANKS, YEARLY_RANKS, _rank_from_xp, _next_threshold, TokenTransaction, add_tokens, spend_tokens
 from datetime import date, timedelta
 import calendar as cal_module
 from datetime import datetime, timedelta
@@ -128,6 +128,8 @@ def me(request):
 
     rank_name    = getattr(profile, "rank", "Bronze")
     xp           = int(getattr(profile, "xp", 0) or 0)
+    monthly_xp   = int(profile.get_current_month_xp())
+    yearly_xp    = int(profile.get_yearly_xp())
     next_rank_xp = int(getattr(profile, "next_rank_xp", 600) or 600)
 
     resp = {
@@ -140,6 +142,10 @@ def me(request):
         "yearly_rank": profile.yearly_rank,
         "xp": xp,
         "xp_to_next_level": profile.xp_to_next_level,
+        "monthly_xp": monthly_xp,
+        "monthly_xp_to_next_level": _next_threshold(monthly_xp, MONTHLY_RANKS),
+        "yearly_xp": yearly_xp,
+        "yearly_xp_to_next_level": _next_threshold(yearly_xp, YEARLY_RANKS),
         "next_rank_xp": next_rank_xp,
 
         "beer": beer, "floco": floco, "rum": rum,
@@ -218,13 +224,14 @@ def send_request(request):
     if FriendRequest.objects.filter(from_user=to, to_user=mep, accepted=False).exists():
         return Response({"detail": "they already sent you a request"}, status=409)
 
-    # Check if request already exists
-    if FriendRequest.objects.filter(from_user=mep, to_user=to).exists():
-        return Response({'error': 'Friend request already sent.'}, status=400)
-
-    # Check if already friends
-    if mep.friends.filter(id=to.id).exists():
-        return Response({'error': 'Already friends.'}, status=400)
+    # Old accepted rows remain after users remove each other. They are history,
+    # not active requests, and must not prevent the pair reconnecting later.
+    FriendRequest.objects.filter(
+        from_user=mep, to_user=to, accepted=True
+    ).delete()
+    FriendRequest.objects.filter(
+        from_user=to, to_user=mep, accepted=True
+    ).delete()
 
     fr = FriendRequest.objects.create(from_user=mep, to_user=to)
     return Response(FriendRequestSerializer(fr).data, status=201)
@@ -468,6 +475,21 @@ def friend_profile_api(request, username: str):
 
     mep = request.user.profile
     are_friends = p in mep.friends.all()
+    outgoing_request = FriendRequest.objects.filter(
+        from_user=mep, to_user=p, accepted=False
+    ).first()
+    incoming_request = FriendRequest.objects.filter(
+        from_user=p, to_user=mep, accepted=False
+    ).first()
+
+    if are_friends:
+        friendship_status = "friends"
+    elif incoming_request:
+        friendship_status = "incoming"
+    elif outgoing_request:
+        friendship_status = "outgoing"
+    else:
+        friendship_status = "none"
 
     return Response({
         "username": target_user.username,
@@ -482,6 +504,8 @@ def friend_profile_api(request, username: str):
         "total_drinks": total,
         "shotguns": shotguns, "snorkels": snorkels, "thrown_up": thrown,
         "are_friends": are_friends,
+        "friendship_status": friendship_status,
+        "incoming_request_id": incoming_request.id if incoming_request else None,
     }, status=200)
 
 

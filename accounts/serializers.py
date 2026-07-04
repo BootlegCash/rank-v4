@@ -1,7 +1,10 @@
 # accounts/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Profile, DailyLog, FriendRequest, Post, MonthlyRankHistory, TokenTransaction
+from .models import (
+    Profile, DailyLog, FriendRequest, Post, MonthlyRankHistory,
+    TokenTransaction, MONTHLY_RANKS, YEARLY_RANKS, _next_threshold,
+)
 
 
 # ── Mini helpers ──────────────────────────────────────────────────────────────
@@ -34,6 +37,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     total_alcohol_ml = serializers.SerializerMethodField()
     xp_percentage    = serializers.SerializerMethodField()
     xp_to_next_level = serializers.SerializerMethodField()
+    monthly_xp       = serializers.SerializerMethodField()
+    yearly_xp        = serializers.SerializerMethodField()
+    monthly_xp_to_next_level = serializers.SerializerMethodField()
+    yearly_xp_to_next_level  = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -46,6 +53,10 @@ class ProfileSerializer(serializers.ModelSerializer):
             "rank",           # lifetime sub-rank  (e.g. "Bronze 2")
             "monthly_rank",   # current month rank  (e.g. "Gold")
             "yearly_rank",    # current year rank   (e.g. "Silver")
+            "monthly_xp",
+            "monthly_xp_to_next_level",
+            "yearly_xp",
+            "yearly_xp_to_next_level",
             "beer",
             "floco",
             "rum",
@@ -66,6 +77,10 @@ class ProfileSerializer(serializers.ModelSerializer):
             "rank",
             "monthly_rank",
             "yearly_rank",
+            "monthly_xp",
+            "monthly_xp_to_next_level",
+            "yearly_xp",
+            "yearly_xp_to_next_level",
             "total_drinks",
             "total_alcohol_ml",
             "xp_percentage",
@@ -89,6 +104,20 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     def get_xp_to_next_level(self, obj: Profile):
         return obj.xp_to_next_level
+
+    def get_monthly_xp(self, obj: Profile) -> int:
+        return int(obj.get_current_month_xp())
+
+    def get_yearly_xp(self, obj: Profile) -> int:
+        return int(obj.get_yearly_xp())
+
+    def get_monthly_xp_to_next_level(self, obj: Profile):
+        xp = int(obj.get_current_month_xp())
+        return _next_threshold(xp, MONTHLY_RANKS)
+
+    def get_yearly_xp_to_next_level(self, obj: Profile):
+        xp = int(obj.get_yearly_xp())
+        return _next_threshold(xp, YEARLY_RANKS)
 
 
 # ── Daily logs ────────────────────────────────────────────────────────────────

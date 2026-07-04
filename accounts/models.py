@@ -10,10 +10,10 @@ from django.utils import timezone
 def current_log_date():
     """
     Returns the effective log date for Arizona (America/Phoenix timezone).
-    Days run from 3 AM to 3 AM (adjusts the date if current time is between midnight-3 AM)
+    Days run from 4 AM to 4 AM (adjusts the date if current time is between midnight-4 AM)
     """
     now = timezone.localtime(timezone.now())
-    if now.hour < 3:
+    if now.hour < 4:
         return (now - timedelta(days=1)).date()
     return now.date()
 
@@ -293,7 +293,7 @@ class Post(models.Model):
 
 class DailyLog(models.Model):
     profile   = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="daily_logs")
-    date      = models.DateField(help_text="Log date (3 AM to 3 AM)", default=current_log_date)
+    date      = models.DateField(help_text="Log date (4 AM to 4 AM)", default=current_log_date)
 
     beer      = models.PositiveIntegerField(default=0)
     floco     = models.PositiveIntegerField(default=0)
